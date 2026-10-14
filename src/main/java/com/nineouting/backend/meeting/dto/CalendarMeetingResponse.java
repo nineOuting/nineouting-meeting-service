@@ -1,6 +1,7 @@
 package com.nineouting.backend.meeting.dto;
 
 import com.nineouting.backend.meeting.domain.MeetingStatus;
+import com.nineouting.backend.meeting.domain.MinutesProgress;
 import java.time.LocalDateTime;
 
 /**
@@ -12,6 +13,7 @@ public record CalendarMeetingResponse(
         LocalDateTime startAt,
         LocalDateTime endAt,
         MeetingStatus status,
+        MinutesProgress minutesStatus,
         Long workspaceId,
         String workspaceName,
         Long folderId,

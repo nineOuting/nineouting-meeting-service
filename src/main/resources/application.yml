@@ -25,7 +25,7 @@ nineouting:
       jwks-uri: ${JWT_JWKS_URI:http://localhost:8081/.well-known/jwks.json}
   inbox:
     # 쉼표로 구분, 공백 없이
-    topics: workspace.folder-deleted
-  meeting:
+    topics: workspace.folder-deleted,minutes.review-requested,minutes.confirmed
+  clients:
     user-service-url: ${USER_SERVICE_URL:http://localhost:8081}
     workspace-service-url: ${WORKSPACE_SERVICE_URL:http://localhost:8082}

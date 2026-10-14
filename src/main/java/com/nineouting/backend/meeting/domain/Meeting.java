@@ -68,6 +68,11 @@ public class Meeting extends BaseTimeEntity {
     @Column(name = "cancelled_at")
     private LocalDateTime cancelledAt;
 
+    /** 회의록 상태 (REQ-046 "검토 중·확정"). minutes-service 이벤트로 바뀐다. 검토를 요청하기 전에는 null */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "minutes_status", length = 20)
+    private MinutesProgress minutesStatus;
+
     public Meeting(Long workspaceId, Long folderId, Long ownerUserId, Long previousMeetingId) {
         this.workspaceId = workspaceId;
         this.folderId = folderId;
@@ -114,5 +119,12 @@ public class Meeting extends BaseTimeEntity {
     public void cancel(LocalDateTime now) {
         this.status = MeetingStatus.CANCELLED;
         this.cancelledAt = now;
+    }
+
+    /** 이벤트 순서가 바뀌어 와도 확정을 검토 중으로 되돌리지 않는다 */
+    public void changeMinutesStatus(MinutesProgress minutesStatus) {
+        if (this.minutesStatus != MinutesProgress.CONFIRMED) {
+            this.minutesStatus = minutesStatus;
+        }
     }
 }

@@ -1,6 +1,7 @@
 package com.nineouting.backend.meeting.dto;
 
 import com.nineouting.backend.meeting.domain.MeetingStatus;
+import com.nineouting.backend.meeting.domain.MinutesProgress;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -14,6 +15,7 @@ public record MeetingDetailResponse(
         LocalDateTime endAt,
         String location,
         MeetingStatus status,
+        MinutesProgress minutesStatus,
         PersonResponse owner,
         PersonResponse writer,
         List<PersonResponse> attendees,

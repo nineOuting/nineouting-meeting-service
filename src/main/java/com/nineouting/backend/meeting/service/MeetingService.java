@@ -1,5 +1,10 @@
 package com.nineouting.backend.meeting.service;
 
+import com.nineouting.backend.common.client.AccessibleFolder;
+import com.nineouting.backend.common.client.FolderAccess;
+import com.nineouting.backend.common.client.UserClient;
+import com.nineouting.backend.common.client.UserSummary;
+import com.nineouting.backend.common.client.WorkspaceClient;
 import com.nineouting.backend.common.event.meeting.MeetingCancelled;
 import com.nineouting.backend.common.event.meeting.MeetingCreated;
 import com.nineouting.backend.common.event.meeting.MeetingMoved;
@@ -7,11 +12,6 @@ import com.nineouting.backend.common.event.meeting.MeetingUpdated;
 import com.nineouting.backend.common.outbox.OutboxEventWriter;
 import com.nineouting.backend.common.web.error.BusinessException;
 import com.nineouting.backend.common.web.error.CommonErrorCode;
-import com.nineouting.backend.meeting.client.AccessibleFolder;
-import com.nineouting.backend.meeting.client.FolderAccess;
-import com.nineouting.backend.meeting.client.UserClient;
-import com.nineouting.backend.meeting.client.UserSummary;
-import com.nineouting.backend.meeting.client.WorkspaceClient;
 import com.nineouting.backend.meeting.domain.Agenda;
 import com.nineouting.backend.meeting.domain.Meeting;
 import com.nineouting.backend.meeting.domain.MeetingAttendee;
@@ -196,7 +196,8 @@ public class MeetingService {
                 .map(meeting -> {
                     AccessibleFolder folder = folders.get(meeting.getFolderId());
                     return new CalendarMeetingResponse(meeting.getId(), meeting.getTitle(), meeting.getStartAt(),
-                            meeting.getEndAt(), meeting.getStatus(), meeting.getWorkspaceId(), folder.workspaceName(),
+                            meeting.getEndAt(), meeting.getStatus(), meeting.getMinutesStatus(), meeting.getWorkspaceId(),
+                            folder.workspaceName(),
                             meeting.getFolderId(), folder.name());
                 })
                 .toList();
@@ -211,6 +212,7 @@ public class MeetingService {
         return new MeetingDetailResponse(
                 meeting.getId(), meeting.getWorkspaceId(), meeting.getFolderId(), meeting.getTitle(),
                 meeting.getStartAt(), meeting.getEndAt(), meeting.getLocation(), meeting.getStatus(),
+                meeting.getMinutesStatus(),
                 PersonResponse.of(meeting.getOwnerUserId(), users.get(meeting.getOwnerUserId())),
                 PersonResponse.of(meeting.getWriterUserId(), users.get(meeting.getWriterUserId())),
                 attendees.stream().map(id -> PersonResponse.of(id, users.get(id))).toList(),

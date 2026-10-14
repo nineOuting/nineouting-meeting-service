@@ -1,9 +1,12 @@
 package com.nineouting.backend.meeting.service;
 
+import com.nineouting.backend.common.event.meeting.MeetingFinished;
+import com.nineouting.backend.common.outbox.OutboxEventWriter;
 import com.nineouting.backend.common.web.error.BusinessException;
 import com.nineouting.backend.common.web.error.CommonErrorCode;
 import com.nineouting.backend.meeting.domain.Agenda;
 import com.nineouting.backend.meeting.domain.Meeting;
+import com.nineouting.backend.meeting.domain.MeetingAttendee;
 import com.nineouting.backend.meeting.domain.MeetingStatus;
 import com.nineouting.backend.meeting.domain.PendingAgenda;
 import com.nineouting.backend.meeting.domain.PendingAgendaStatus;
@@ -11,6 +14,7 @@ import com.nineouting.backend.meeting.dto.AddAgendaRequest;
 import com.nineouting.backend.meeting.dto.AgendaResponse;
 import com.nineouting.backend.meeting.error.MeetingErrorCode;
 import com.nineouting.backend.meeting.repository.AgendaRepository;
+import com.nineouting.backend.meeting.repository.MeetingAttendeeRepository;
 import com.nineouting.backend.meeting.repository.PendingAgendaRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -32,7 +36,9 @@ public class MeetingProgressService {
 
     private final AgendaRepository agendaRepository;
     private final PendingAgendaRepository pendingAgendaRepository;
+    private final MeetingAttendeeRepository attendeeRepository;
     private final MeetingAccess access;
+    private final OutboxEventWriter outboxEventWriter;
     private final Clock clock;
 
     /** REQ-070. 참석자 누구나, 예정 상태면 언제든 */
@@ -83,12 +89,22 @@ public class MeetingProgressService {
         }
     }
 
-    /** REQ-087. 회의록 작성자, 진행 중 → 끝남. 불러와서 다시 넘기지 않은 남은 안건은 처리됨. */
+    /**
+     * REQ-087. 회의록 작성자, 진행 중 → 끝남. 불러와서 다시 넘기지 않은 남은 안건은 처리됨.
+     * minutes-service가 회의록(작성 중)을 만들도록 MeetingFinished를 남긴다.
+     */
     @Transactional
     public void finish(Long meetingId, Long userId) {
         Meeting meeting = access.requireWriterInProgress(meetingId, userId);
         meeting.finish(LocalDateTime.now(clock));
         pendingAgendaRepository.findByTakenMeetingIdAndStatus(meetingId, PendingAgendaStatus.IN_PROGRESS)
                 .forEach(PendingAgenda::done);
+
+        List<Long> attendees = attendeeRepository.findByMeetingIdOrderById(meetingId).stream()
+                .map(MeetingAttendee::getUserId)
+                .toList();
+        outboxEventWriter.append(MeetingFinished.TOPIC, meetingId.toString(), MeetingFinished.TYPE,
+                new MeetingFinished(meetingId, meeting.getWorkspaceId(), meeting.getFolderId(), meeting.getTitle(),
+                        meeting.getStartAt(), meeting.getWriterUserId(), attendees));
     }
 }

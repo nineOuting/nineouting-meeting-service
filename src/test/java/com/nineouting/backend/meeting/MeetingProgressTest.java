@@ -1,5 +1,6 @@
 package com.nineouting.backend.meeting;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -7,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.nineouting.backend.common.event.meeting.MeetingFinished;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,6 +56,9 @@ class MeetingProgressTest extends ApiTestSupport {
                 .andExpect(jsonPath("$.data.startedAt").isNotEmpty())
                 .andExpect(jsonPath("$.data.finishedAt").isNotEmpty())
                 .andExpect(jsonPath("$.data.agendas[*].title", contains("안건1", "추가")));
+        assertThat(outboxContains(MeetingFinished.TYPE, "\"meetingId\":%d,".formatted(meetingId))).isTrue();
+        assertThat(outboxContains(MeetingFinished.TYPE,
+                "\"writerUserId\":%d,\"attendeeUserIds\":[%d,%d]".formatted(writer, owner, writer))).isTrue();
     }
 
     @Test

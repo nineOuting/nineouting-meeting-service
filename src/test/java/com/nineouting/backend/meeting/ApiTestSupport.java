@@ -7,14 +7,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import com.nineouting.backend.common.client.AccessibleFolder;
+import com.nineouting.backend.common.client.FolderAccess;
+import com.nineouting.backend.common.client.UserClient;
+import com.nineouting.backend.common.client.UserSummary;
+import com.nineouting.backend.common.client.WorkspaceClient;
 import com.nineouting.backend.common.outbox.OutboxEventRepository;
 import com.nineouting.backend.common.web.error.BusinessException;
 import com.nineouting.backend.common.web.error.CommonErrorCode;
-import com.nineouting.backend.meeting.client.AccessibleFolder;
-import com.nineouting.backend.meeting.client.FolderAccess;
-import com.nineouting.backend.meeting.client.UserClient;
-import com.nineouting.backend.meeting.client.UserSummary;
-import com.nineouting.backend.meeting.client.WorkspaceClient;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;

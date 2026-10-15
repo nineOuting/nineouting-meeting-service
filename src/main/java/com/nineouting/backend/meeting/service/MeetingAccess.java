@@ -1,9 +1,9 @@
 package com.nineouting.backend.meeting.service;
 
+import com.nineouting.backend.common.client.FolderAccess;
+import com.nineouting.backend.common.client.WorkspaceClient;
 import com.nineouting.backend.common.web.error.BusinessException;
 import com.nineouting.backend.common.web.error.CommonErrorCode;
-import com.nineouting.backend.meeting.client.FolderAccess;
-import com.nineouting.backend.meeting.client.WorkspaceClient;
 import com.nineouting.backend.meeting.domain.Meeting;
 import com.nineouting.backend.meeting.domain.MeetingStatus;
 import com.nineouting.backend.meeting.error.MeetingErrorCode;

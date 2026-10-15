@@ -5,7 +5,7 @@
 - 설계: [nineouting-docs/docs/services/meeting-service.md](https://github.com/nineOuting/nineouting-docs/blob/main/docs/services/meeting-service.md)
 - 포트: `8083`
 - 현재 1차 범위(AI와 무관한 부분). 회의방 WebSocket·전사 텍스트·안건 보드·AI 연동·음성 업로드는 2차
-- 폴더 권한은 workspace-service, 사용자 이름은 user-service에 조회한다 (회의는 ID만 저장)
+- 폴더 권한은 workspace-service, 사용자 이름은 user-service에 조회한다 (공통 모듈 `client-common`, 회의는 ID만 저장)
 - 알림 이벤트는 공통 모듈 `outbox`로 보내고, `FolderDeleted`는 `inbox`로 받는다
 
 ## 로컬 실행
@@ -41,7 +41,9 @@
 |------|------|------|
 | 보냄 | `meeting.created` · `meeting.updated` · `meeting.cancelled` | 참석자 알림 (notification) |
 | 보냄 | `meeting.moved` | 회의 폴더 이동 (minutes) |
+| 보냄 | `meeting.finished` | 회의 마무리 → 회의록 만들기 (minutes) |
 | 받음 | `workspace.folder-deleted` | 폴더 안의 회의·남은 안건 삭제 |
+| 받음 | `minutes.review-requested` · `minutes.confirmed` | 회의 목록·캘린더의 회의록 상태(`minutesStatus`: 검토 중·확정) |
 
 ## 테스트
 

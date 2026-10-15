@@ -111,7 +111,7 @@ public class MeetingService {
                 result.getSize(), result.getTotalElements(), result.hasNext());
     }
 
-    /** REQ-115. 만든 사람만, 시작 전에만. 새로 추가된 사람·빠진 사람을 이벤트에 담는다. */
+    /** REQ-116. 만든 사람만, 시작 전에만. 새로 추가된 사람·빠진 사람을 이벤트에 담는다. */
     @Transactional
     public MeetingDetailResponse update(Long meetingId, Long userId, MeetingRequest request) {
         Meeting meeting = access.requireEditable(meetingId, userId);
@@ -147,7 +147,7 @@ public class MeetingService {
         return detail(meeting);
     }
 
-    /** REQ-112. 만든 사람만, 시작 전에만. 불러온 남은 안건은 다시 대기로 돌린다. */
+    /** REQ-113. 만든 사람만, 시작 전에만. 불러온 남은 안건은 다시 대기로 돌린다. */
     @Transactional
     public void cancel(Long meetingId, Long userId) {
         Meeting meeting = access.requireEditable(meetingId, userId);

@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * REQ-114: 폴더(하위 폴더 포함)가 지워지면 그 안의 회의·참석자·안건·남은 안건을 지운다. 알림은 보내지 않는다.
+ * REQ-115: 폴더(하위 폴더 포함)가 지워지면 그 안의 회의·참석자·안건·남은 안건을 지운다. 알림은 보내지 않는다.
  * inbox가 이벤트마다 트랜잭션을 열어 부른다.
  */
 @Component

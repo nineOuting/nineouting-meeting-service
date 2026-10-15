@@ -51,7 +51,7 @@ public class MeetingProgressService {
         meeting.start(LocalDateTime.now(clock));
     }
 
-    /** REQ-113. 회의록 작성자, 진행 중. 맨 뒤에 붙인다. */
+    /** REQ-114. 회의록 작성자, 진행 중. 맨 뒤에 붙인다. */
     @Transactional
     public AgendaResponse addAgenda(Long meetingId, Long userId, AddAgendaRequest request) {
         access.requireWriterInProgress(meetingId, userId);

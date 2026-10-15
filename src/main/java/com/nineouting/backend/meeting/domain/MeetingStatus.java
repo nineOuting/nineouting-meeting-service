@@ -10,6 +10,6 @@ public enum MeetingStatus {
     IN_PROGRESS,
     /** 끝남 (REQ-087 마무리) */
     FINISHED,
-    /** 취소 (REQ-112). 목록·캘린더에서 숨긴다 */
+    /** 취소 (REQ-113). 목록·캘린더에서 숨긴다 */
     CANCELLED
 }

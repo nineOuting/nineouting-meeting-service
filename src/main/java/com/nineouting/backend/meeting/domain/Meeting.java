@@ -81,7 +81,7 @@ public class Meeting extends BaseTimeEntity {
         this.status = MeetingStatus.SCHEDULED;
     }
 
-    /** 생성·수정(REQ-115) 때 바꿀 수 있는 정보 */
+    /** 생성·수정(REQ-116) 때 바꿀 수 있는 정보 */
     public void changeInfo(String title, LocalDateTime startAt, LocalDateTime endAt, String location, Long writerUserId) {
         this.title = title;
         this.startAt = startAt;

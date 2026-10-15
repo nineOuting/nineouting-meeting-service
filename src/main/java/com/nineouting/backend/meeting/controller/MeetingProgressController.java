@@ -35,7 +35,7 @@ public class MeetingProgressController {
         return ApiResponse.ok();
     }
 
-    /** REQ-113 */
+    /** REQ-114 */
     @PostMapping("/api/meetings/{meetingId}/agendas")
     public ResponseEntity<ApiResponse<AgendaResponse>> addAgenda(@CurrentUser AuthenticatedUser user,
                                                                  @PathVariable Long meetingId,

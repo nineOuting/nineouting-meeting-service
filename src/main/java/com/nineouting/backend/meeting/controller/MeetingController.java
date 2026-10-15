@@ -61,14 +61,14 @@ public class MeetingController {
         return ApiResponse.ok(meetingService.get(meetingId, user.userId()));
     }
 
-    /** REQ-115 */
+    /** REQ-116 */
     @PutMapping("/api/meetings/{meetingId}")
     public ApiResponse<MeetingDetailResponse> update(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId,
                                                      @Valid @RequestBody MeetingRequest request) {
         return ApiResponse.ok(meetingService.update(meetingId, user.userId(), request));
     }
 
-    /** REQ-112 */
+    /** REQ-113 */
     @PostMapping("/api/meetings/{meetingId}/cancel")
     public ApiResponse<Void> cancel(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId) {
         meetingService.cancel(meetingId, user.userId());

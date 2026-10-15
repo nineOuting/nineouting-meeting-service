@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 회의 생성(REQ-056~067)·수정(REQ-115). 시각은 한국 시간.
+ * 회의 생성(REQ-056~067)·수정(REQ-116). 시각은 한국 시간.
  *
  * @param attendeeUserIds   참석자. 만든 사람은 없어도 들어간다
  * @param agendas           배열 순서 = 안건 순서 (REQ-065)

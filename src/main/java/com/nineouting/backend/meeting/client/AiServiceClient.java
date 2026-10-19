@@ -22,6 +22,16 @@ public class AiServiceClient {
         this.restClient = restClient;
     }
 
+    /** GET /health가 2xx면 정상 (REQ-111 AI 일시 중단 감지) */
+    public boolean isHealthy() {
+        try {
+            restClient.get().uri("/health").retrieve().toBodilessEntity();
+            return true;
+        } catch (RestClientException e) {
+            return false;
+        }
+    }
+
     /** 회의 알림 (시작·멈춤·재개·종료) */
     public void sendEvent(Long meetingId, Object event) {
         call(() -> restClient.post()

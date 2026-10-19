@@ -33,12 +33,19 @@ public class MeetingRoomHub extends TextWebSocketHandler {
 
     private final JsonMapper jsonMapper;
     private final Map<Long, Set<WebSocketSession>> rooms = new ConcurrentHashMap<>();
+    /** 지금 ai-service 상태. 회의방에 들어오면 한 번 보낸다. 아직 모르면 null */
+    private volatile RoomMessage aiStatus;
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         Long meetingId = (Long) session.getAttributes().get(MEETING_ID);
-        rooms.computeIfAbsent(meetingId, id -> ConcurrentHashMap.newKeySet())
-                .add(new ConcurrentWebSocketSessionDecorator(session, SEND_TIME_LIMIT_MS, BUFFER_SIZE_LIMIT));
+        WebSocketSession decorated = new ConcurrentWebSocketSessionDecorator(session, SEND_TIME_LIMIT_MS,
+                BUFFER_SIZE_LIMIT);
+        rooms.computeIfAbsent(meetingId, id -> ConcurrentHashMap.newKeySet()).add(decorated);
+        RoomMessage current = aiStatus;
+        if (current != null) {
+            sendTo(meetingId, decorated, new TextMessage(jsonMapper.writeValueAsString(current)));
+        }
     }
 
     @Override
@@ -58,12 +65,22 @@ public class MeetingRoomHub extends TextWebSocketHandler {
         }
         TextMessage text = new TextMessage(jsonMapper.writeValueAsString(message));
         for (WebSocketSession session : sessions) {
-            try {
-                session.sendMessage(text);
-            } catch (IOException | IllegalStateException e) {
-                log.debug("회의방 전송 실패, 연결을 정리합니다 (meetingId={}): {}", meetingId, e.getMessage());
-                remove(meetingId, session);
-            }
+            sendTo(meetingId, session, text);
+        }
+    }
+
+    /** ai-service 상태가 바뀌면 열려 있는 모든 회의방에 알린다 */
+    public void changeAiStatus(boolean available) {
+        aiStatus = RoomMessage.aiStatus(available);
+        rooms.keySet().forEach(meetingId -> send(meetingId, aiStatus));
+    }
+
+    private void sendTo(Long meetingId, WebSocketSession session, TextMessage text) {
+        try {
+            session.sendMessage(text);
+        } catch (IOException | IllegalStateException e) {
+            log.debug("회의방 전송 실패, 연결을 정리합니다 (meetingId={}): {}", meetingId, e.getMessage());
+            remove(meetingId, session);
         }
     }
 

@@ -52,7 +52,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "nineouting.outbox.relay-interval=1h",
         "nineouting.meeting.ai.batch-interval=1s",
-        "nineouting.meeting.ai.poll-interval=200ms"
+        "nineouting.meeting.ai.poll-interval=200ms",
+        "nineouting.meeting.ai.health-interval=200ms"
 })
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)

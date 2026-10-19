@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
  *   <li>transcript: STT가 보낸 줄이 반영됨 (말하는 중인 줄도 포함, 같은 seq는 통째로 바꾼다)</li>
  *   <li>transcriptEdited: 회의록 작성자가 고침 (REQ-112)</li>
  *   <li>transcriptDeleted: 회의록 작성자가 지움 (seq, rev)</li>
+ *   <li>paused / resumed: 회의록 작성자가 회의를 멈춤·재개 (REQ-119)</li>
  *   <li>finished: 회의가 마무리됨. 서버가 연결을 닫는다</li>
  * </ul>
  */
@@ -24,6 +25,14 @@ public record RoomMessage(String type, TranscriptLineResponse line, Integer seq,
 
     public static RoomMessage transcriptDeleted(int seq, int rev) {
         return new RoomMessage("transcriptDeleted", null, seq, rev);
+    }
+
+    public static RoomMessage paused() {
+        return new RoomMessage("paused", null, null, null);
+    }
+
+    public static RoomMessage resumed() {
+        return new RoomMessage("resumed", null, null, null);
     }
 
     public static RoomMessage finished() {

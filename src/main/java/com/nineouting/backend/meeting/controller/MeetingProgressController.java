@@ -35,6 +35,20 @@ public class MeetingProgressController {
         return ApiResponse.ok();
     }
 
+    /** REQ-119 */
+    @PostMapping("/api/meetings/{meetingId}/pause")
+    public ApiResponse<Void> pause(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId) {
+        progressService.pause(meetingId, user.userId());
+        return ApiResponse.ok();
+    }
+
+    /** REQ-119 */
+    @PostMapping("/api/meetings/{meetingId}/resume")
+    public ApiResponse<Void> resume(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId) {
+        progressService.resume(meetingId, user.userId());
+        return ApiResponse.ok();
+    }
+
     /** REQ-114 */
     @PostMapping("/api/meetings/{meetingId}/agendas")
     public ResponseEntity<ApiResponse<AgendaResponse>> addAgenda(@CurrentUser AuthenticatedUser user,

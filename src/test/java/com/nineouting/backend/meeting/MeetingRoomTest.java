@@ -3,6 +3,7 @@ package com.nineouting.backend.meeting;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -74,6 +75,24 @@ class MeetingRoomTest extends ApiTestSupport {
         String deleted = room.next();
         assertThat((Object) JsonPath.read(deleted, "$.type")).isEqualTo("transcriptDeleted");
         assertThat((Object) JsonPath.read(deleted, "$.seq")).isEqualTo(1);
+
+        // 멈춤·재개는 회의록 작성자만, 참석자 화면에 알린다 (REQ-119)
+        call(attendee, post("/api/meetings/" + meetingId + "/pause"), null)
+                .andExpect(jsonPath("$.code").value("NOT_MEETING_WRITER"));
+        call(writer, post("/api/meetings/" + meetingId + "/resume"), null)
+                .andExpect(jsonPath("$.code").value("MEETING_NOT_PAUSED"));
+        call(writer, post("/api/meetings/" + meetingId + "/pause"), null).andExpect(status().isOk());
+        assertThat((Object) JsonPath.read(room.next(), "$.type")).isEqualTo("paused");
+        call(writer, post("/api/meetings/" + meetingId + "/pause"), null)
+                .andExpect(jsonPath("$.code").value("MEETING_ALREADY_PAUSED"));
+        call(attendee, get("/api/meetings/" + meetingId), null)
+                .andExpect(jsonPath("$.data.paused").value(true))
+                .andExpect(jsonPath("$.data.pausedAt").isNotEmpty());
+        call(writer, post("/api/meetings/" + meetingId + "/resume"), null).andExpect(status().isOk());
+        assertThat((Object) JsonPath.read(room.next(), "$.type")).isEqualTo("resumed");
+        call(attendee, get("/api/meetings/" + meetingId), null)
+                .andExpect(jsonPath("$.data.paused").value(false))
+                .andExpect(jsonPath("$.data.pausedSeconds").isNumber());
 
         // 회의를 마무리하면 알리고 연결을 닫는다
         call(writer, post("/api/meetings/" + meetingId + "/finish"), null).andExpect(status().isOk());

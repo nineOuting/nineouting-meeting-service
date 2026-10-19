@@ -9,6 +9,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -68,6 +69,14 @@ public class Meeting extends BaseTimeEntity {
     @Column(name = "cancelled_at")
     private LocalDateTime cancelledAt;
 
+    /** 멈춘 시각 (REQ-119). 멈춰 있지 않으면 null. 회의 상태는 진행 중 그대로다 */
+    @Column(name = "paused_at")
+    private LocalDateTime pausedAt;
+
+    /** 끝난 멈춤 시간의 합. 경과 시간(REQ-074)에서 뺀다 */
+    @Column(name = "paused_total_ms", nullable = false)
+    private long pausedTotalMs;
+
     /** 회의록 상태 (REQ-046 "검토 중·확정"). minutes-service 이벤트로 바뀐다. 검토를 요청하기 전에는 null */
     @Enumerated(EnumType.STRING)
     @Column(name = "minutes_status", length = 20)
@@ -111,7 +120,25 @@ public class Meeting extends BaseTimeEntity {
         this.startedAt = now;
     }
 
+    public boolean isPaused() {
+        return pausedAt != null;
+    }
+
+    /** REQ-119. 진행 중일 때만 (서비스에서 확인) */
+    public void pause(LocalDateTime now) {
+        this.pausedAt = now;
+    }
+
+    public void resume(LocalDateTime now) {
+        this.pausedTotalMs += Duration.between(pausedAt, now).toMillis();
+        this.pausedAt = null;
+    }
+
+    /** 멈춘 채로 마무리하면 멈춤을 끝내고 마무리한다 */
     public void finish(LocalDateTime now) {
+        if (isPaused()) {
+            resume(now);
+        }
         this.status = MeetingStatus.FINISHED;
         this.finishedAt = now;
     }

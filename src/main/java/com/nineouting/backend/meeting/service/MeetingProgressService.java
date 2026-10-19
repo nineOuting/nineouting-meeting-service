@@ -60,6 +60,28 @@ public class MeetingProgressService {
         aiFeedRepository.save(new AiFeed(meetingId, now));
     }
 
+    /** REQ-119. 회의록 작성자, 진행 중. 녹음·경과 시간이 멈춘다 (음성은 브라우저가 STT에 멈춤을 보낸다) */
+    @Transactional
+    public void pause(Long meetingId, Long userId) {
+        Meeting meeting = access.requireWriterInProgress(meetingId, userId);
+        if (meeting.isPaused()) {
+            throw new BusinessException(MeetingErrorCode.MEETING_ALREADY_PAUSED);
+        }
+        meeting.pause(LocalDateTime.now(clock));
+        events.publishEvent(RoomEvent.send(meetingId, RoomMessage.paused()));
+    }
+
+    /** REQ-119. 회의록 작성자, 진행 중 */
+    @Transactional
+    public void resume(Long meetingId, Long userId) {
+        Meeting meeting = access.requireWriterInProgress(meetingId, userId);
+        if (!meeting.isPaused()) {
+            throw new BusinessException(MeetingErrorCode.MEETING_NOT_PAUSED);
+        }
+        meeting.resume(LocalDateTime.now(clock));
+        events.publishEvent(RoomEvent.send(meetingId, RoomMessage.resumed()));
+    }
+
     /** REQ-114. 회의록 작성자, 진행 중. 맨 뒤에 붙인다. */
     @Transactional
     public AgendaResponse addAgenda(Long meetingId, Long userId, AddAgendaRequest request) {

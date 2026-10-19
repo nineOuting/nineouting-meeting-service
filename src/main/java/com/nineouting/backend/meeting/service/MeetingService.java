@@ -59,6 +59,7 @@ public class MeetingService {
     /** 월 화면(6주)을 한 번에 받을 수 있는 기간 */
     static final int CALENDAR_MAX_DAYS = 42;
     private static final int MAX_PAGE_SIZE = 100;
+    private static final long MILLIS_PER_SECOND = 1000;
 
     private final MeetingRepository meetingRepository;
     private final MeetingAttendeeRepository attendeeRepository;
@@ -217,7 +218,8 @@ public class MeetingService {
                 PersonResponse.of(meeting.getWriterUserId(), users.get(meeting.getWriterUserId())),
                 attendees.stream().map(id -> PersonResponse.of(id, users.get(id))).toList(),
                 agendaRepository.findByMeetingIdOrderByPosition(meeting.getId()).stream().map(AgendaResponse::from).toList(),
-                meeting.getPreviousMeetingId(), meeting.getStartedAt(), meeting.getFinishedAt());
+                meeting.getPreviousMeetingId(), meeting.getStartedAt(), meeting.getFinishedAt(),
+                meeting.isPaused(), meeting.getPausedAt(), meeting.getPausedTotalMs() / MILLIS_PER_SECOND);
     }
 
     /** 요청한 참석자 + 만든 사람 (요청 순서 유지) */

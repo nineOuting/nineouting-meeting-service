@@ -52,6 +52,14 @@ public interface TranscriptLineRepository extends JpaRepository<TranscriptLine, 
             order by l.startMs, l.seq""")
     List<TranscriptLine> findPendingForAi(Long meetingId);
 
+    /**
+     * ai-service에 넘긴 rev를 기록한다. 줄 전체를 저장하지 않고 이 칸만 바꿔서,
+     * 그사이 작성자가 고치거나 지운 내용을 덮어쓰지 않는다 (고친 줄은 rev가 커서 다음 묶음에 다시 간다).
+     */
+    @Modifying
+    @Query("update TranscriptLine l set l.sentRev = :rev where l.id = :id")
+    void markSentToAi(Long id, int rev);
+
     @Modifying
     @Query("delete from TranscriptLine l where l.meetingId in :meetingIds")
     void deleteByMeetingIdIn(Collection<Long> meetingIds);

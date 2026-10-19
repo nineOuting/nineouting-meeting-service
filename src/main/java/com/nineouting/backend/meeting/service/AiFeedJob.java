@@ -147,7 +147,7 @@ public class AiFeedJob {
             return true;
         }
         batchRepository.save(new AiBatch(feed.getMeetingId(), batch, payload, now));
-        pending.forEach(TranscriptLine::markSentToAi);
+        pending.forEach(line -> lineRepository.markSentToAi(line.getId(), line.getRev()));
         feed.batchSent();
         return false;
     }

@@ -99,8 +99,4 @@ public class TranscriptLine {
     public boolean isChangedForAi() {
         return sentRev != null && rev > sentRev;
     }
-
-    public void markSentToAi() {
-        this.sentRev = rev;
-    }
 }

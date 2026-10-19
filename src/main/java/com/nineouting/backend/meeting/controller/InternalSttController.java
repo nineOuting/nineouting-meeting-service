@@ -4,8 +4,8 @@ import com.nineouting.backend.common.web.response.ApiResponse;
 import com.nineouting.backend.meeting.dto.ProgressEventRequest;
 import com.nineouting.backend.meeting.dto.SttTicketOwnerResponse;
 import com.nineouting.backend.meeting.dto.TranscriptSegmentsRequest;
+import com.nineouting.backend.meeting.service.ConnectionTicketService;
 import com.nineouting.backend.meeting.service.ProgressEventService;
-import com.nineouting.backend.meeting.service.SttTicketService;
 import com.nineouting.backend.meeting.service.TranscriptService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,14 +23,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class InternalSttController {
 
-    private final SttTicketService sttTicketService;
+    private final ConnectionTicketService ticketService;
     private final TranscriptService transcriptService;
     private final ProgressEventService progressEventService;
 
     /** 2.1 음성 연결 입장권 확인. 한 번 쓰면 지운다. 없거나 만료면 401 INVALID_STT_TICKET */
     @PostMapping("/internal/stt-tickets/{ticket}/consume")
     public ApiResponse<SttTicketOwnerResponse> consumeTicket(@PathVariable String ticket) {
-        return ApiResponse.ok(sttTicketService.consume(ticket));
+        return ApiResponse.ok(ticketService.consumeStt(ticket));
     }
 
     /** 2.2 전사 텍스트 저장 */

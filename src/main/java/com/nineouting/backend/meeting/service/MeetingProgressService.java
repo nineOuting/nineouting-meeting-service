@@ -13,6 +13,7 @@ import com.nineouting.backend.meeting.domain.PendingAgenda;
 import com.nineouting.backend.meeting.domain.PendingAgendaStatus;
 import com.nineouting.backend.meeting.dto.AddAgendaRequest;
 import com.nineouting.backend.meeting.dto.AgendaResponse;
+import com.nineouting.backend.meeting.dto.RoomMessage;
 import com.nineouting.backend.meeting.error.MeetingErrorCode;
 import com.nineouting.backend.meeting.repository.AgendaRepository;
 import com.nineouting.backend.meeting.repository.AiFeedRepository;
@@ -25,6 +26,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +44,7 @@ public class MeetingProgressService {
     private final MeetingAttendeeRepository attendeeRepository;
     private final MeetingAccess access;
     private final OutboxEventWriter outboxEventWriter;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
     /** REQ-070. 참석자 누구나, 예정 상태면 언제든 */
@@ -109,6 +112,8 @@ public class MeetingProgressService {
         List<Long> attendees = attendeeRepository.findByMeetingIdOrderById(meetingId).stream()
                 .map(MeetingAttendee::getUserId)
                 .toList();
+        // 회의방(전사 텍스트 중계)은 마무리와 함께 닫는다
+        events.publishEvent(RoomEvent.closeAfter(meetingId, RoomMessage.finished()));
         outboxEventWriter.append(MeetingFinished.TOPIC, meetingId.toString(), MeetingFinished.TYPE,
                 new MeetingFinished(meetingId, meeting.getWorkspaceId(), meeting.getFolderId(), meeting.getTitle(),
                         meeting.getStartAt(), meeting.getWriterUserId(), attendees));

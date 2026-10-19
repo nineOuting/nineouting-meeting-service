@@ -21,7 +21,9 @@ public class SecurityConfig {
     private static final String[] PUBLIC_PATHS = {
             "/actuator/health", "/actuator/health/**", "/actuator/prometheus",
             // stt-service가 클러스터 안에서 부른다. Gateway가 외부로 열지 않는다 (docs/services/ai-integration.md 2장)
-            "/internal/**"
+            "/internal/**",
+            // 회의방 WebSocket. 브라우저는 Authorization 헤더를 붙일 수 없어 연결할 때 1회용 입장권으로 확인한다
+            "/ws/**"
     };
 
     @Bean

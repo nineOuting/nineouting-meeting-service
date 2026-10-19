@@ -5,6 +5,7 @@ import com.nineouting.backend.common.outbox.OutboxEventWriter;
 import com.nineouting.backend.common.web.error.BusinessException;
 import com.nineouting.backend.common.web.error.CommonErrorCode;
 import com.nineouting.backend.meeting.domain.Agenda;
+import com.nineouting.backend.meeting.domain.AiFeed;
 import com.nineouting.backend.meeting.domain.Meeting;
 import com.nineouting.backend.meeting.domain.MeetingAttendee;
 import com.nineouting.backend.meeting.domain.MeetingStatus;
@@ -14,6 +15,7 @@ import com.nineouting.backend.meeting.dto.AddAgendaRequest;
 import com.nineouting.backend.meeting.dto.AgendaResponse;
 import com.nineouting.backend.meeting.error.MeetingErrorCode;
 import com.nineouting.backend.meeting.repository.AgendaRepository;
+import com.nineouting.backend.meeting.repository.AiFeedRepository;
 import com.nineouting.backend.meeting.repository.MeetingAttendeeRepository;
 import com.nineouting.backend.meeting.repository.PendingAgendaRepository;
 import java.time.Clock;
@@ -28,13 +30,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 회의 진행 중 상태 바꾸기 (1차): 시작, 안건 추가, 다음 회의로 넘기기, 마무리.
- * 전사 텍스트·안건 보드·AI 연동은 2차 (docs/services/meeting-service.md 0장).
+ * 전사 텍스트는 TranscriptService, ai-service로 밀어 주기는 AiFeedJob. 안건 보드는 2차 (docs/services/meeting-service.md 0장).
  */
 @Service
 @RequiredArgsConstructor
 public class MeetingProgressService {
 
     private final AgendaRepository agendaRepository;
+    private final AiFeedRepository aiFeedRepository;
     private final PendingAgendaRepository pendingAgendaRepository;
     private final MeetingAttendeeRepository attendeeRepository;
     private final MeetingAccess access;
@@ -48,7 +51,10 @@ public class MeetingProgressService {
         if (!meeting.is(MeetingStatus.SCHEDULED)) {
             throw new BusinessException(MeetingErrorCode.MEETING_ALREADY_STARTED);
         }
-        meeting.start(LocalDateTime.now(clock));
+        LocalDateTime now = LocalDateTime.now(clock);
+        meeting.start(now);
+        // 회의 알림·전사 줄을 ai-service로 밀어 주기 시작한다 (AiFeedJob)
+        aiFeedRepository.save(new AiFeed(meetingId, now));
     }
 
     /** REQ-114. 회의록 작성자, 진행 중. 맨 뒤에 붙인다. */

@@ -27,6 +27,24 @@ class MeetingTest {
     }
 
     @Test
+    void 멈춘_시간은_모아_두고_멈춘_채_마무리하면_그때까지_더한다() {
+        Meeting meeting = meeting();
+        meeting.start(NOW);
+
+        meeting.pause(NOW.plusMinutes(10));
+        assertThat(meeting.isPaused()).isTrue();
+        assertThat(meeting.is(MeetingStatus.IN_PROGRESS)).isTrue();
+        meeting.resume(NOW.plusMinutes(15));
+        assertThat(meeting.isPaused()).isFalse();
+        assertThat(meeting.getPausedTotalMs()).isEqualTo(5 * 60 * 1000);
+
+        meeting.pause(NOW.plusMinutes(20));
+        meeting.finish(NOW.plusMinutes(22));
+        assertThat(meeting.isPaused()).isFalse();
+        assertThat(meeting.getPausedTotalMs()).isEqualTo(7 * 60 * 1000);
+    }
+
+    @Test
     void 취소하면_취소_상태와_시각을_남긴다() {
         Meeting meeting = meeting();
 

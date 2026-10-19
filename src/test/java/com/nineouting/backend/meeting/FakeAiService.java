@@ -48,16 +48,23 @@ public final class FakeAiService {
         CONFLICT_ONCE.set(expectedBatch);
     }
 
-    /** 이 회의로 받은 요청 본문. kind: events / lines */
+    /** 이 회의로 받은 요청 본문. kind: events / batches */
     public static List<String> received(Long meetingId, String kind) {
-        String path = "/meetings/" + meetingId + "/" + kind;
+        String path = "/internal/meetings/" + meetingId + "/" + kind;
         return RECEIVED.stream().filter(received -> received.path().equals(path)).map(Received::body).toList();
+    }
+
+    /** 이 회의로 받은 요청 종류(events / batches)를 받은 순서대로 */
+    public static List<String> receivedKinds(Long meetingId) {
+        String prefix = "/internal/meetings/" + meetingId + "/";
+        return RECEIVED.stream().filter(received -> received.path().startsWith(prefix))
+                .map(received -> received.path().substring(prefix.length())).toList();
     }
 
     private static void handle(HttpExchange exchange) throws IOException {
         String path = exchange.getRequestURI().getPath();
         String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-        int conflict = path.endsWith("/lines") ? CONFLICT_ONCE.getAndSet(0) : 0;
+        int conflict = path.endsWith("/batches") ? CONFLICT_ONCE.getAndSet(0) : 0;
         if (conflict > 0) {
             respond(exchange, 409, "{\"expectedBatch\":" + conflict + "}");
             return;

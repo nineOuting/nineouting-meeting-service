@@ -8,6 +8,7 @@ import com.nineouting.backend.meeting.domain.AiFeed;
 import com.nineouting.backend.meeting.domain.Meeting;
 import com.nineouting.backend.meeting.domain.MeetingStatus;
 import com.nineouting.backend.meeting.domain.ProgressEvent;
+import com.nineouting.backend.meeting.domain.ProgressEventType;
 import com.nineouting.backend.meeting.domain.TranscriptLine;
 import com.nineouting.backend.meeting.dto.AiEventMessage;
 import com.nineouting.backend.meeting.dto.AiLinesMessage;
@@ -33,6 +34,7 @@ import tools.jackson.databind.json.JsonMapper;
  *   <li>회의마다 잠그고 처리하므로 서비스를 여러 개 띄워도 같은 회의를 동시에 보내지 않는다</li>
  *   <li>ai-service가 실패하면 보낼 것을 그대로 두고 다음 주기에 다시 보낸다. 그동안의 변경은 한 묶음에 모인다 (REQ-111)</li>
  *   <li>ai-service가 빠진 묶음 번호를 알려 주면(409) 저장해 둔 묶음을 그 번호부터 다시 보낸다</li>
+ *   <li>종료(end) 알림은 남은 줄을 다 보낸 뒤에 보낸다. 먼저 가면 ai-service가 마지막 구간의 줄을 빠뜨린다</li>
  * </ul>
  */
 @Slf4j
@@ -75,10 +77,13 @@ public class AiFeedJob {
         }
         AiFeed feed = due.get();
         try {
-            sendEvents(feed);
-            if (feed.isBatchDue(now)) {
+            boolean endWaiting = sendEvents(feed);
+            if (feed.isBatchDue(now) || endWaiting) {
                 boolean sendAgainNow = resendStoredBatches(feed) || sendNewBatch(feed, now);
                 feed.succeeded(sendAgainNow ? now : now.plus(properties.batchInterval()));
+                if (endWaiting && !sendAgainNow) {
+                    sendEvents(feed);
+                }
                 deleteIfDone(feed, now);
             }
         } catch (AiServiceException e) {
@@ -89,12 +94,18 @@ public class AiFeedJob {
         return true;
     }
 
-    private void sendEvents(AiFeed feed) {
-        for (ProgressEvent event : eventRepository.findByMeetingIdAndSentFalseOrderById(feed.getMeetingId())) {
-            aiServiceClient.sendEvent(feed.getMeetingId(), new AiEventMessage(feed.getMeetingId(),
-                    event.getEvent().wireName(), event.getAtMs(), event.getReceivedAt()));
+    /** 쌓인 회의 알림을 순서대로 보낸다. 종료 알림 앞에서 아직 못 보낸 줄이 있으면 멈추고 true */
+    private boolean sendEvents(AiFeed feed) {
+        Long meetingId = feed.getMeetingId();
+        for (ProgressEvent event : eventRepository.findByMeetingIdAndSentFalseOrderById(meetingId)) {
+            if (event.getEvent() == ProgressEventType.END && !lineRepository.findPendingForAi(meetingId).isEmpty()) {
+                return true;
+            }
+            aiServiceClient.sendEvent(meetingId, new AiEventMessage(meetingId.toString(), event.getEvent().wireName(),
+                    event.getAtMs(), event.getReceivedAt()));
             event.markSent();
         }
+        return false;
     }
 
     /** @return ai-service가 더 앞 번호를 다시 달라고 해서 곧바로 다시 보내야 하면 true */
@@ -124,7 +135,7 @@ public class AiFeedJob {
             return false;
         }
         int batch = feed.getNextBatch();
-        String payload = jsonMapper.writeValueAsString(new AiLinesMessage(feed.getMeetingId(), batch,
+        String payload = jsonMapper.writeValueAsString(new AiLinesMessage(feed.getMeetingId().toString(), batch,
                 pending.stream().filter(TranscriptLine::isNewForAi).map(AiFeedJob::toLine).toList(),
                 pending.stream().filter(TranscriptLine::isChangedForAi).map(AiFeedJob::toEdit).toList()));
         Integer expected = aiServiceClient.sendLines(feed.getMeetingId(), payload);

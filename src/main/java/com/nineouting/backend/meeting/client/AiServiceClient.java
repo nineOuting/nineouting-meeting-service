@@ -8,7 +8,8 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 /**
- * ai-service 호출 (docs/services/ai-integration.md 2.4). 타임아웃은 AiClientConfig에서 정한다.
+ * ai-service 호출 (docs/services/ai-integration.md 2.4, ai-service docs/api/input-contract.md). 타임아웃은 AiClientConfig에서 정한다.
+ * 응답이 2xx면 받은 것으로 본다 (이미 받은 묶음 duplicate, 종료 뒤 ignored도 200이라 다시 보내지 않는다).
  * 호출 시간·실패는 RestClient 관측으로 http.client.requests 지표에 남는다.
  */
 public class AiServiceClient {
@@ -24,7 +25,7 @@ public class AiServiceClient {
     /** 회의 알림 (시작·멈춤·재개·종료) */
     public void sendEvent(Long meetingId, Object event) {
         call(() -> restClient.post()
-                .uri("/meetings/{meetingId}/events", meetingId)
+                .uri("/internal/meetings/{meetingId}/events", meetingId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(event)
                 .retrieve()
@@ -39,7 +40,7 @@ public class AiServiceClient {
     public Integer sendLines(Long meetingId, String payloadJson) {
         try {
             restClient.post()
-                    .uri("/meetings/{meetingId}/lines", meetingId)
+                    .uri("/internal/meetings/{meetingId}/batches", meetingId)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(payloadJson)
                     .retrieve()

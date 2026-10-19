@@ -128,7 +128,7 @@ class SttIntegrationTest extends ApiTestSupport {
 
         String event = awaitOne(() -> FakeAiService.received(meetingId, "events"));
         assertThat((Object) JsonPath.read(event, "$.event")).isEqualTo("start");
-        assertThat((Object) JsonPath.read(event, "$.meetingId")).isEqualTo(meetingId.intValue());
+        assertThat((Object) JsonPath.read(event, "$.meetingId")).isEqualTo(meetingId.toString());
         assertThat(JsonPath.<String>read(event, "$.wall")).matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?");
         String first = awaitBatch(1);
         assertThat(JsonPath.<List<Integer>>read(first, "$.lines[*].seq")).containsExactly(1);   // 중간 결과는 넘기지 않는다
@@ -158,6 +158,16 @@ class SttIntegrationTest extends ApiTestSupport {
         String fourth = awaitBatch(4);
         assertThat(JsonPath.<List<Boolean>>read(fourth, "$.edits[*].deleted")).containsExactly(true);
         assertThat(batchNumbers()).containsExactly(1, 2, 3, 2, 3, 4);
+
+        // 종료 알림은 남은 줄을 보낸 뒤에 간다
+        internal(transcripts(), segments(segment(5, 1, "마지막 말", 9000, 9500L, true)));
+        internal(events(), "{\"event\":\"end\",\"atMs\":9600}");
+        awaitBatch(5);
+        long deadline = System.nanoTime() + WAIT.toNanos();
+        while (FakeAiService.received(meetingId, "events").size() < 2 && System.nanoTime() < deadline) {
+            Thread.sleep(100);
+        }
+        assertThat(FakeAiService.receivedKinds(meetingId)).endsWith("batches", "events");
     }
 
     private void start() throws Exception {
@@ -192,7 +202,7 @@ class SttIntegrationTest extends ApiTestSupport {
     }
 
     private List<Integer> batchNumbers() {
-        return FakeAiService.received(meetingId, "lines").stream()
+        return FakeAiService.received(meetingId, "batches").stream()
                 .map(body -> JsonPath.<Integer>read(body, "$.batch"))
                 .toList();
     }
@@ -201,7 +211,7 @@ class SttIntegrationTest extends ApiTestSupport {
     private String awaitBatch(int batch) throws InterruptedException {
         long deadline = System.nanoTime() + WAIT.toNanos();
         while (System.nanoTime() < deadline) {
-            List<String> found = FakeAiService.received(meetingId, "lines").stream()
+            List<String> found = FakeAiService.received(meetingId, "batches").stream()
                     .filter(body -> JsonPath.<Integer>read(body, "$.batch") == batch)
                     .toList();
             if (!found.isEmpty()) {

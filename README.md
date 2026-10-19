@@ -45,7 +45,7 @@ stt-service가 클러스터 안에서 부르는 주소 (Gateway가 외부로 열
 | POST | `/internal/meetings/{meetingId}/transcripts` | 전사 텍스트 저장 (`rev`가 클 때만, 확정된 줄은 그대로) |
 | POST | `/internal/meetings/{meetingId}/events` | 회의 진행 알림 (`start`·`pause`·`resume`·`end`, 서버 시각을 붙여 저장) |
 
-ai-service로는 회의 알림을 바로, 줄 묶음을 10초마다 밀어 준다 (`POST /meetings/{id}/events`, `POST /meetings/{id}/lines`). `AI_SERVICE_URL`이 비어 있으면 보내지 않는다.
+ai-service로는 회의 알림을 바로, 줄 묶음을 10초마다 밀어 준다 (`POST /internal/meetings/{id}/events`, `POST /internal/meetings/{id}/batches`, `meetingId`는 문자열). 종료 알림은 남은 줄을 보낸 뒤에 보낸다. `AI_SERVICE_URL`이 비어 있으면 보내지 않는다.
 
 회의 시각은 한국 시간으로 주고받는다 (`"2026-10-20T14:00:00"`).
 

@@ -10,18 +10,28 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import com.nineouting.backend.meeting.domain.TranscriptLine;
+import com.nineouting.backend.meeting.repository.TranscriptLineRepository;
 import java.time.Duration;
 import java.util.List;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /** STT 연동: 음성 연결 입장권, 전사 텍스트 저장·수정, ai-service로 밀어 주기 (docs/services/ai-integration.md 2장) */
 class SttIntegrationTest extends ApiTestSupport {
 
     private static final Duration WAIT = Duration.ofSeconds(15);
+
+    @Autowired
+    private TranscriptLineRepository lineRepository;
+
+    @Autowired
+    private TransactionTemplate transactionTemplate;
 
     private Long owner;
     private Long writer;
@@ -169,6 +179,30 @@ class SttIntegrationTest extends ApiTestSupport {
             Thread.sleep(100);
         }
         assertThat(FakeAiService.receivedKinds(meetingId)).endsWith("batches", "events");
+    }
+
+    @Test
+    void ai_service로_넘긴_표시는_그사이_고친_내용을_덮어쓰지_않는다() throws Exception {
+        start();
+        internal(transcripts(), segments(segment(1, 1, "벡터 디비로", 1000, 2000L, true)));
+        // AiFeedJob이 묶음을 만들려고 줄을 읽어 둔 상태(rev 1)
+        TranscriptLine read = lineRepository.findByMeetingIdAndDeletedFalseOrderByStartMsAscSeqAsc(meetingId).getFirst();
+        // 그사이 작성자가 고친다 (rev 2)
+        call(writer, patch(transcripts().replace("/internal", "/api") + "/1"), "{\"text\":\"벡터DB로 가죠\"}");
+        // 읽어 둔 rev 1을 넘겼다고 기록한다
+        transactionTemplate.executeWithoutResult(status -> lineRepository.markSentToAi(read.getId(), read.getRev()));
+
+        call(writer, get(transcripts().replace("/internal", "/api")), null)
+                .andExpect(jsonPath("$.data[0].text").value("벡터DB로 가죠"))
+                .andExpect(jsonPath("$.data[0].rev").value(2));
+        // 고친 내용은 (새 줄이든 edits든) 결국 ai-service에 간다
+        long deadline = System.nanoTime() + WAIT.toNanos();
+        while (FakeAiService.received(meetingId, "batches").stream().noneMatch(body -> body.contains("벡터DB로 가죠"))) {
+            if (System.nanoTime() > deadline) {
+                throw new AssertionError("고친 내용이 ai-service로 가지 않았습니다: " + FakeAiService.received(meetingId, "batches"));
+            }
+            Thread.sleep(100);
+        }
     }
 
     private void start() throws Exception {

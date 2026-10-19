@@ -116,6 +116,21 @@ class MeetingRoomTest extends ApiTestSupport {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void ai_service가_멈추면_회의방에_AI_일시_중단을_알리고_돌아오면_다시_알린다() throws Exception {
+        start();
+        Room room = Room.connect(port, meetingId, roomTicket(attendee));
+        assertThat(room.nextAiStatus()).isTrue();   // 들어오면 지금 상태를 받는다
+        FakeAiService.respondWith(503);
+        try {
+            assertThat(room.nextAiStatus()).isFalse();
+        } finally {
+            FakeAiService.respondWith(200);
+        }
+        assertThat(room.nextAiStatus()).isTrue();
+        room.socket.abort();
+    }
+
     private void assertRejected(Long targetMeetingId, String ticket) {
         // 연결을 받지 않고 401로 답한다
         assertThatThrownBy(() -> Room.connect(port, targetMeetingId, ticket)).hasStackTraceContaining("401");
@@ -148,6 +163,8 @@ class MeetingRoomTest extends ApiTestSupport {
     private static final class Room implements WebSocket.Listener {
 
         private final BlockingQueue<String> messages = new LinkedBlockingQueue<>();
+        /** ai-service 상태(aiStatus)는 다른 테스트의 장애 흉내와 겹칠 수 있어 따로 모은다 */
+        private final BlockingQueue<Boolean> aiStatuses = new LinkedBlockingQueue<>();
         private final CountDownLatch closed = new CountDownLatch(1);
         private final StringBuilder partial = new StringBuilder();
         private WebSocket socket;
@@ -165,6 +182,12 @@ class MeetingRoomTest extends ApiTestSupport {
             return room;
         }
 
+        boolean nextAiStatus() throws InterruptedException {
+            Boolean available = aiStatuses.poll(WAIT_SECONDS, TimeUnit.SECONDS);
+            assertThat(available).as("aiStatus를 받지 못했습니다").isNotNull();
+            return available;
+        }
+
         String next() throws InterruptedException {
             String message = messages.poll(WAIT_SECONDS, TimeUnit.SECONDS);
             assertThat(message).as("회의방 메시지를 받지 못했습니다").isNotNull();
@@ -175,8 +198,13 @@ class MeetingRoomTest extends ApiTestSupport {
         public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
             partial.append(data);
             if (last) {
-                messages.add(partial.toString());
+                String message = partial.toString();
                 partial.setLength(0);
+                if ("aiStatus".equals(JsonPath.read(message, "$.type"))) {
+                    aiStatuses.add(JsonPath.read(message, "$.available"));
+                } else {
+                    messages.add(message);
+                }
             }
             webSocket.request(1);
             return null;

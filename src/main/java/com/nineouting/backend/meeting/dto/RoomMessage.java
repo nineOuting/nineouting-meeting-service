@@ -10,32 +10,38 @@ import com.fasterxml.jackson.annotation.JsonInclude;
  *   <li>transcriptDeleted: 회의록 작성자가 지움 (seq, rev)</li>
  *   <li>paused / resumed: 회의록 작성자가 회의를 멈춤·재개 (REQ-119)</li>
  *   <li>finished: 회의가 마무리됨. 서버가 연결을 닫는다</li>
+ *   <li>aiStatus: ai-service가 멈추거나(available=false) 돌아옴 → 화면에 "AI 일시 중단" 표시 (REQ-111).
+ *       회의방에 들어오면 지금 상태를 한 번 보낸다</li>
  * </ul>
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record RoomMessage(String type, TranscriptLineResponse line, Integer seq, Integer rev) {
+public record RoomMessage(String type, TranscriptLineResponse line, Integer seq, Integer rev, Boolean available) {
 
     public static RoomMessage transcript(TranscriptLineResponse line) {
-        return new RoomMessage("transcript", line, null, null);
+        return new RoomMessage("transcript", line, null, null, null);
     }
 
     public static RoomMessage transcriptEdited(TranscriptLineResponse line) {
-        return new RoomMessage("transcriptEdited", line, null, null);
+        return new RoomMessage("transcriptEdited", line, null, null, null);
     }
 
     public static RoomMessage transcriptDeleted(int seq, int rev) {
-        return new RoomMessage("transcriptDeleted", null, seq, rev);
+        return new RoomMessage("transcriptDeleted", null, seq, rev, null);
     }
 
     public static RoomMessage paused() {
-        return new RoomMessage("paused", null, null, null);
+        return new RoomMessage("paused", null, null, null, null);
     }
 
     public static RoomMessage resumed() {
-        return new RoomMessage("resumed", null, null, null);
+        return new RoomMessage("resumed", null, null, null, null);
+    }
+
+    public static RoomMessage aiStatus(boolean available) {
+        return new RoomMessage("aiStatus", null, null, null, available);
     }
 
     public static RoomMessage finished() {
-        return new RoomMessage("finished", null, null, null);
+        return new RoomMessage("finished", null, null, null, null);
     }
 }

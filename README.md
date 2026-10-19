@@ -38,7 +38,7 @@
 | PATCH | `/api/meetings/{meetingId}/transcripts/{seq}` | 확정된 줄 고치기 (회의록 작성자, 진행 중) |
 | DELETE | `/api/meetings/{meetingId}/transcripts/{seq}` | 줄 지우기 (회의록 작성자, 진행 중) |
 | POST | `/api/meetings/{meetingId}/room-ticket` | 회의방 WebSocket용 30초 1회용 입장권 (참석자, 진행 중) |
-| WS | `/ws/meetings/{meetingId}?ticket=...` | 회의방: 전사 텍스트(`transcript`)·수정(`transcriptEdited`)·삭제(`transcriptDeleted`)·멈춤·재개(`paused`·`resumed`)·마무리(`finished`)를 실시간으로 받는다 |
+| WS | `/ws/meetings/{meetingId}?ticket=...` | 회의방: 전사 텍스트(`transcript`)·수정(`transcriptEdited`)·삭제(`transcriptDeleted`)·멈춤·재개(`paused`·`resumed`)·AI 일시 중단(`aiStatus`)·마무리(`finished`)를 실시간으로 받는다 |
 
 stt-service가 클러스터 안에서 부르는 주소 (Gateway가 외부로 열지 않는다):
 

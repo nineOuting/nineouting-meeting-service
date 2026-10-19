@@ -67,6 +67,19 @@ public class MeetingAccess {
         return meeting;
     }
 
+    /**
+     * stt-service가 보내는 전사 텍스트·회의 진행 알림: 시작한 회의만.
+     * 마무리 직후 STT가 마지막 줄을 확정해 보낼 수 있으므로 끝난 회의도 받는다.
+     */
+    public Meeting requireStarted(Long meetingId) {
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.NOT_FOUND));
+        if (!meeting.is(MeetingStatus.IN_PROGRESS) && !meeting.is(MeetingStatus.FINISHED)) {
+            throw new BusinessException(MeetingErrorCode.MEETING_NOT_IN_PROGRESS);
+        }
+        return meeting;
+    }
+
     /** 회의 중 안건 추가·다음 회의로 넘기기·마무리: 회의록 작성자만, 진행 중에만 */
     public Meeting requireWriterInProgress(Long meetingId, Long userId) {
         Meeting meeting = requireViewable(meetingId, userId);

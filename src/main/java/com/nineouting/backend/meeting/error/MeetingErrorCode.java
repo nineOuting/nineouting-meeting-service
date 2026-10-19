@@ -25,7 +25,9 @@ public enum MeetingErrorCode implements ErrorCode {
     WRITER_NOT_ATTENDEE(HttpStatus.BAD_REQUEST, "회의록 작성자는 참석자 중에서 골라야 합니다"),
     PENDING_AGENDA_UNAVAILABLE(HttpStatus.CONFLICT, "이미 다른 회의에서 다루고 있는 안건입니다"),
     FOLDER_MOVE_INVALID(HttpStatus.BAD_REQUEST, "같은 워크스페이스의 폴더로만 옮길 수 있습니다"),
-    CALENDAR_RANGE_INVALID(HttpStatus.BAD_REQUEST, "조회 기간은 42일까지입니다");
+    CALENDAR_RANGE_INVALID(HttpStatus.BAD_REQUEST, "조회 기간은 42일까지입니다"),
+    INVALID_STT_TICKET(HttpStatus.UNAUTHORIZED, "음성 연결 입장권이 없거나 만료되었습니다"),
+    TRANSCRIPT_NOT_EDITABLE(HttpStatus.CONFLICT, "아직 확정되지 않았거나 지운 줄은 고칠 수 없습니다");
 
     private final HttpStatus status;
     private final String message;

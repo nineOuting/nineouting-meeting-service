@@ -18,7 +18,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 public class SecurityConfig {
 
-    private static final String[] PUBLIC_PATHS = {"/actuator/health", "/actuator/health/**", "/actuator/prometheus"};
+    private static final String[] PUBLIC_PATHS = {
+            "/actuator/health", "/actuator/health/**", "/actuator/prometheus",
+            // stt-service가 클러스터 안에서 부른다. Gateway가 외부로 열지 않는다 (docs/services/ai-integration.md 2장)
+            "/internal/**"
+    };
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter,

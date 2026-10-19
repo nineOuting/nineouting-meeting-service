@@ -18,6 +18,11 @@ services:
       interval: 5s
       retries: 10
 
+  redis:
+    image: redis:7.4-alpine     # 회의방 메시지를 인스턴스끼리 나눠 보내는 Pub/Sub, localhost:6379
+    ports:
+      - "6379:6379"
+
   kafka:
     image: apache/kafka:3.9.1   # KRaft 단일 브로커, localhost:9092
     ports:

@@ -49,6 +49,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-kafka'
     implementation 'org.springframework.boot:spring-boot-starter-restclient'
     implementation 'org.springframework.boot:spring-boot-starter-websocket'   // 회의방 (전사 텍스트 실시간 중계)
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'  // 회의방 메시지를 여러 인스턴스에 나눠 보낸다
     implementation 'org.springframework.boot:spring-boot-starter-flyway'
     implementation 'org.flywaydb:flyway-database-postgresql'
     runtimeOnly 'org.postgresql:postgresql'

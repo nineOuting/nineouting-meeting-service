@@ -18,7 +18,8 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * 회의방 WebSocket (REQ-072, 112): 참석자 화면에 전사 텍스트와 수정본을 실시간으로 보낸다.
  * 연결 권한은 RoomTicketInterceptor가 입장권으로 확인한다. 브라우저는 받기만 하고, 보내는 메시지는 무시한다.
- * 이 인스턴스에 연결된 참석자에게만 보낸다 — 여러 인스턴스로 늘릴 때는 docs/backlog.md "회의방 여러 인스턴스".
+ * 이 인스턴스에 연결된 참석자에게만 보낸다. 다른 인스턴스에 붙은 참석자에게는 RoomFanout(Redis Pub/Sub)이 나눠 준다.
+ * ai-service 상태(aiStatus)는 인스턴스마다 직접 확인해 자기 연결에 보낸다 (AiHealthMonitor).
  */
 @Slf4j
 @Component
@@ -63,7 +64,19 @@ public class MeetingRoomHub extends TextWebSocketHandler {
         if (sessions == null || sessions.isEmpty()) {
             return;
         }
-        TextMessage text = new TextMessage(jsonMapper.writeValueAsString(message));
+        sendText(meetingId, sessions, new TextMessage(jsonMapper.writeValueAsString(message)));
+    }
+
+    /** 이미 JSON으로 만든 메시지를 그대로 보낸다 (RoomFanout이 Redis에서 받은 것) */
+    public void sendJson(Long meetingId, String json) {
+        Set<WebSocketSession> sessions = rooms.get(meetingId);
+        if (sessions == null || sessions.isEmpty()) {
+            return;
+        }
+        sendText(meetingId, sessions, new TextMessage(json));
+    }
+
+    private void sendText(Long meetingId, Set<WebSocketSession> sessions, TextMessage text) {
         for (WebSocketSession session : sessions) {
             sendTo(meetingId, session, text);
         }

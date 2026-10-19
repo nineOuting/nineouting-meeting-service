@@ -10,12 +10,13 @@ import java.util.Date;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * 테스트용 PostgreSQL·Kafka, user-service 대신 토큰을 서명할 키.
+ * 테스트용 PostgreSQL·Kafka·Redis, user-service 대신 토큰을 서명할 키.
  */
 @TestConfiguration(proxyBeanMethods = false)
 public class TestcontainersConfiguration {
@@ -33,6 +34,13 @@ public class TestcontainersConfiguration {
     @ServiceConnection
     KafkaContainer kafkaContainer() {
         return new KafkaContainer(DockerImageName.parse("apache/kafka:3.9.1"));
+    }
+
+    /** 회의방 메시지를 인스턴스끼리 나눠 보내는 Pub/Sub */
+    @Bean
+    @ServiceConnection(name = "redis")
+    GenericContainer<?> redisContainer() {
+        return new GenericContainer<>(DockerImageName.parse("redis:7.4-alpine")).withExposedPorts(6379);
     }
 
     /** security-common이 user-service JWKS 대신 테스트 공개키로 검증하게 한다. */

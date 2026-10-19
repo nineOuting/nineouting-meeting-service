@@ -48,7 +48,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  */
 // outbox는 보낸 이벤트를 바로 지우므로, 발행한 이벤트를 테이블에서 확인하려고 테스트에서는 전송을 멈춘다.
 // ai-service로 밀어 주기는 가짜 ai-service(FakeAiService)로 보내고, 기다리는 시간을 줄인다.
-@SpringBootTest(properties = {
+// 회의방 WebSocket을 실제로 붙여 보려고 실제 포트로 띄운다 (MockMvc도 함께 쓴다)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "nineouting.outbox.relay-interval=1h",
         "nineouting.meeting.ai.batch-interval=1s",
         "nineouting.meeting.ai.poll-interval=200ms"

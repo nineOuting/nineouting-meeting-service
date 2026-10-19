@@ -17,6 +17,8 @@ public interface TranscriptLineRepository extends JpaRepository<TranscriptLine, 
      * stt-service가 보낸 줄을 넣거나 바꾼다 (docs/services/ai-integration.md 2.2).
      * rev가 더 클 때만 바꾸고, 확정되거나 지운 줄은 그대로 둔다 (확정 뒤 변경은 모두 작성자 수정).
      * 한 문장이라 같은 줄이 동시에 와도 안전하다.
+     *
+     * @return 반영했으면 1, 무시했으면 0
      */
     @Modifying
     @Query(value = """
@@ -32,7 +34,7 @@ public interface TranscriptLineRepository extends JpaRepository<TranscriptLine, 
             where transcript_lines.rev < excluded.rev
               and not transcript_lines.is_final
               and not transcript_lines.deleted""", nativeQuery = true)
-    void upsertFromStt(Long meetingId, int seq, int rev, String speakerLabel, String text, long startMs, Long endMs,
+    int upsertFromStt(Long meetingId, int seq, int rev, String speakerLabel, String text, long startMs, Long endMs,
                        boolean isFinal, boolean lowConfidence, String kind, boolean recovered, LocalDateTime now);
 
     /** 화면·저장 순서는 startMs 기준 (보완 줄이 앞 시각에 끼워진다) */

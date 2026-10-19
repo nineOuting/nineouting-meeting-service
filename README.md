@@ -13,7 +13,7 @@
 필요한 것: JDK 21, Docker, 실행 중인 user-service(8081)·workspace-service(8082)
 
 1. `~/.gradle/gradle.properties`에 `gpr.user`, `gpr.key`(read:packages 토큰)
-2. `docker compose up -d` — PostgreSQL(`localhost:5436`), Kafka(`localhost:9092`)
+2. `docker compose up -d` — PostgreSQL(`localhost:5436`), Kafka(`localhost:9092`), Redis(`localhost:6379`)
 3. `./gradlew bootRun --args='--spring.profiles.active=local'`
 
 ## API
@@ -79,4 +79,5 @@ ai-service로는 회의 알림을 바로, 줄 묶음을 10초마다 밀어 준�
 | `JWT_JWKS_URI` | `http://localhost:8081/.well-known/jwks.json` | access 토큰 검증 공개키 |
 | `USER_SERVICE_URL` | `http://localhost:8081` | 참석자 이름 조회 |
 | `WORKSPACE_SERVICE_URL` | `http://localhost:8082` | 폴더 권한·멤버·목록 조회 |
+| `REDIS_HOST` / `REDIS_PORT` | `localhost` / `6379` | 회의방 메시지를 여러 인스턴스에 나눠 보내는 Pub/Sub |
 | `AI_SERVICE_URL` | (비움) | 회의 알림·줄 묶음을 밀어 줄 ai-service 주소. 비우면 보내지 않는다 |

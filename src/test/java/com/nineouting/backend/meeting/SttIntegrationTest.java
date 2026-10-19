@@ -129,10 +129,11 @@ class SttIntegrationTest extends ApiTestSupport {
         String event = awaitOne(() -> FakeAiService.received(meetingId, "events"));
         assertThat((Object) JsonPath.read(event, "$.event")).isEqualTo("start");
         assertThat((Object) JsonPath.read(event, "$.meetingId")).isEqualTo(meetingId.toString());
-        assertThat(JsonPath.<String>read(event, "$.wall")).matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?");
+        assertThat(JsonPath.<String>read(event, "$.wall")).matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?\\+09:00");
         String first = awaitBatch(1);
         assertThat(JsonPath.<List<Integer>>read(first, "$.lines[*].seq")).containsExactly(1);   // 중간 결과는 넘기지 않는다
         assertThat(JsonPath.<List<?>>read(first, "$.edits")).isEmpty();
+        assertThat(first).doesNotContain("speakerLabel");
 
         // 넘긴 줄을 고치면 다음 묶음의 edits로 간다
         call(writer, patch(transcripts().replace("/internal", "/api") + "/1"), "{\"text\":\"배포는 다음 주 목요일\"}");

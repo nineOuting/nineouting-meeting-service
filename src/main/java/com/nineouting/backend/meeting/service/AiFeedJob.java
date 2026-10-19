@@ -3,6 +3,7 @@ package com.nineouting.backend.meeting.service;
 import com.nineouting.backend.meeting.client.AiServiceClient;
 import com.nineouting.backend.meeting.client.AiServiceException;
 import com.nineouting.backend.meeting.config.AiFeedProperties;
+import com.nineouting.backend.meeting.config.AppConfig;
 import com.nineouting.backend.meeting.domain.AiBatch;
 import com.nineouting.backend.meeting.domain.AiFeed;
 import com.nineouting.backend.meeting.domain.Meeting;
@@ -102,7 +103,7 @@ public class AiFeedJob {
                 return true;
             }
             aiServiceClient.sendEvent(meetingId, new AiEventMessage(meetingId.toString(), event.getEvent().wireName(),
-                    event.getAtMs(), event.getReceivedAt()));
+                    event.getAtMs(), event.getReceivedAt().atZone(AppConfig.ZONE).toOffsetDateTime()));
             event.markSent();
         }
         return false;
@@ -167,8 +168,8 @@ public class AiFeedJob {
     }
 
     private static AiLinesMessage.Line toLine(TranscriptLine line) {
-        return new AiLinesMessage.Line(line.getSeq(), line.getSpeakerLabel(), line.getStartMs(), line.getEndMs(),
-                line.getText(), line.getKind(), line.isLowConfidence(), line.isRecovered(), false);
+        return new AiLinesMessage.Line(line.getSeq(), line.getStartMs(), line.getEndMs(), line.getText(), line.getKind(),
+                line.isLowConfidence(), line.isRecovered(), false);
     }
 
     private static AiLinesMessage.Edit toEdit(TranscriptLine line) {

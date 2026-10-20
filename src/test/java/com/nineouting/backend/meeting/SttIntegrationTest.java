@@ -205,6 +205,43 @@ class SttIntegrationTest extends ApiTestSupport {
         }
     }
 
+    @Test
+    void ai_service가_거절한_묶음은_다시_보내지_않고_뒤_묶음은_막히지_않는다() throws Exception {
+        start();
+        // 회의 알림 400 → 버리고 다음 알림은 간다
+        FakeAiService.rejectOnce("events", 400);
+        internal(events(), "{\"event\":\"start\",\"atMs\":0}");
+        Thread.sleep(1000);
+        internal(events(), "{\"event\":\"pause\",\"atMs\":500}");
+        awaitEvents(1);
+        assertThat(JsonPath.<String>read(FakeAiService.received(meetingId, "events").getFirst(), "$.event")).isEqualTo("pause");
+
+        // 줄 묶음 400 → 담긴 줄은 버리고, 번호는 그대로 다음 묶음이 쓴다
+        FakeAiService.rejectOnce("batches", 400);
+        internal(transcripts(), segments(segment(1, 1, "거절될 줄", 1000, 2000L, true)));
+        Thread.sleep(2500);
+        internal(transcripts(), segments(segment(2, 1, "다음 줄", 3000, 4000L, true)));
+        String first = awaitBatch(1);
+        assertThat(JsonPath.<List<Integer>>read(first, "$.lines[*].seq")).containsExactly(2);
+
+        // 429(너무 많은 요청)는 잠시 뒤 다시 보낸다
+        FakeAiService.rejectOnce("batches", 429);
+        internal(transcripts(), segments(segment(3, 1, "다시 갈 줄", 5000, 6000L, true)));
+        String second = awaitBatch(2);
+        assertThat(JsonPath.<List<Integer>>read(second, "$.lines[*].seq")).containsExactly(3);
+        assertThat(batchNumbers()).containsExactly(1, 2);
+    }
+
+    private void awaitEvents(int count) throws InterruptedException {
+        long deadline = System.nanoTime() + WAIT.toNanos();
+        while (FakeAiService.received(meetingId, "events").size() < count) {
+            if (System.nanoTime() > deadline) {
+                throw new AssertionError("회의 알림을 받지 못했습니다");
+            }
+            Thread.sleep(100);
+        }
+    }
+
     private void start() throws Exception {
         call(writer, post("/api/meetings/" + meetingId + "/start"), null).andExpect(status().isOk());
     }

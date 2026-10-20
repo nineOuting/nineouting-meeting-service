@@ -7,6 +7,7 @@ import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -21,6 +22,9 @@ public final class FakeAiService {
     private static final AtomicInteger STATUS = new AtomicInteger(200);
     /** 0보다 크면 다음 줄 묶음 한 번을 409로 거절하고 이 번호를 기다린다고 답한다 */
     private static final AtomicInteger CONFLICT_ONCE = new AtomicInteger();
+    /** 0보다 크면 다음 요청 한 번을 이 상태 코드로 거절한다 (kind별: events / batches) */
+    private static final Map<String, AtomicInteger> REJECT_ONCE = Map.of(
+            "events", new AtomicInteger(), "batches", new AtomicInteger());
 
     static {
         try {
@@ -48,6 +52,11 @@ public final class FakeAiService {
         CONFLICT_ONCE.set(expectedBatch);
     }
 
+    /** kind(events / batches)의 다음 요청 한 번을 status로 거절한다 */
+    public static void rejectOnce(String kind, int status) {
+        REJECT_ONCE.get(kind).set(status);
+    }
+
     /** 이 회의로 받은 요청 본문. kind: events / batches */
     public static List<String> received(Long meetingId, String kind) {
         String path = "/internal/meetings/" + meetingId + "/" + kind;
@@ -64,6 +73,12 @@ public final class FakeAiService {
     private static void handle(HttpExchange exchange) throws IOException {
         String path = exchange.getRequestURI().getPath();
         String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        String kind = path.substring(path.lastIndexOf('/') + 1);
+        int reject = REJECT_ONCE.containsKey(kind) ? REJECT_ONCE.get(kind).getAndSet(0) : 0;
+        if (reject > 0) {
+            respond(exchange, reject, "{\"error\":\"INVALID_INPUT\",\"detail\":\"시험용 거절\"}");
+            return;
+        }
         int conflict = path.endsWith("/batches") ? CONFLICT_ONCE.getAndSet(0) : 0;
         if (conflict > 0) {
             respond(exchange, 409, "{\"expectedBatch\":" + conflict + "}");

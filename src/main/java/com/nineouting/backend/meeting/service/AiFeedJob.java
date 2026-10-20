@@ -1,5 +1,6 @@
 package com.nineouting.backend.meeting.service;
 
+import com.nineouting.backend.meeting.client.AiRejectedException;
 import com.nineouting.backend.meeting.client.AiServiceClient;
 import com.nineouting.backend.meeting.client.AiServiceException;
 import com.nineouting.backend.meeting.config.AiFeedProperties;
@@ -36,6 +37,7 @@ import tools.jackson.databind.json.JsonMapper;
  *   <li>ai-service가 실패하면 보낼 것을 그대로 두고 다음 주기에 다시 보낸다. 그동안의 변경은 한 묶음에 모인다 (REQ-111)</li>
  *   <li>ai-service가 빠진 묶음 번호를 알려 주면(409) 저장해 둔 묶음을 그 번호부터 다시 보낸다</li>
  *   <li>종료(end) 알림은 남은 줄을 다 보낸 뒤에 보낸다. 먼저 가면 ai-service가 마지막 구간의 줄을 빠뜨린다</li>
+ *   <li>ai-service가 거절하면(408·409·429를 뺀 4xx) 다시 보내지 않고 기록만 한다. 다시 보내면 뒤 묶음이 모두 막힌다</li>
  * </ul>
  */
 @Slf4j
@@ -102,8 +104,14 @@ public class AiFeedJob {
             if (event.getEvent() == ProgressEventType.END && !lineRepository.findPendingForAi(meetingId).isEmpty()) {
                 return true;
             }
-            aiServiceClient.sendEvent(meetingId, new AiEventMessage(meetingId.toString(), event.getEvent().wireName(),
-                    event.getAtMs(), event.getReceivedAt().atZone(AppConfig.ZONE).toOffsetDateTime()));
+            try {
+                aiServiceClient.sendEvent(meetingId, new AiEventMessage(meetingId.toString(),
+                        event.getEvent().wireName(), event.getAtMs(),
+                        event.getReceivedAt().atZone(AppConfig.ZONE).toOffsetDateTime()));
+            } catch (AiRejectedException e) {
+                log.error("ai-service가 회의 알림을 거절해 버립니다 (meetingId={}, event={}): {}", meetingId,
+                        event.getEvent().wireName(), e.getMessage());
+            }
             event.markSent();
         }
         return false;
@@ -118,7 +126,14 @@ public class AiFeedJob {
                 feed.getMeetingId(), feed.getResendFrom());
         for (AiBatch batch : stored) {
             // 보내다 실패하면(예외) resendFrom이 남아 다음 주기에 처음부터 다시 보낸다
-            Integer expected = aiServiceClient.sendLines(feed.getMeetingId(), batch.getPayload());
+            Integer expected;
+            try {
+                expected = aiServiceClient.sendLines(feed.getMeetingId(), batch.getPayload());
+            } catch (AiRejectedException e) {
+                log.error("ai-service가 저장해 둔 줄 묶음 {}번을 거절해 건너뜁니다 (meetingId={}): {}", batch.getBatch(),
+                        feed.getMeetingId(), e.getMessage());
+                continue;
+            }
             if (expected != null) {
                 feed.resendDone();
                 feed.requestResend(expected);
@@ -139,7 +154,16 @@ public class AiFeedJob {
         String payload = jsonMapper.writeValueAsString(new AiLinesMessage(feed.getMeetingId().toString(), batch,
                 pending.stream().filter(TranscriptLine::isNewForAi).map(AiFeedJob::toLine).toList(),
                 pending.stream().filter(TranscriptLine::isChangedForAi).map(AiFeedJob::toEdit).toList()));
-        Integer expected = aiServiceClient.sendLines(feed.getMeetingId(), payload);
+        Integer expected;
+        try {
+            expected = aiServiceClient.sendLines(feed.getMeetingId(), payload);
+        } catch (AiRejectedException e) {
+            // 받지 않은 번호이므로 번호는 그대로 두고(다음 묶음이 이 번호를 쓴다), 담긴 줄은 보낸 것으로 친다
+            log.error("ai-service가 줄 묶음 {}번을 거절해 버립니다 (meetingId={}, 줄 {}개): {}", batch,
+                    feed.getMeetingId(), pending.size(), e.getMessage());
+            pending.forEach(line -> lineRepository.markSentToAi(line.getId(), line.getRev()));
+            return false;
+        }
         if (expected != null) {
             log.info("ai-service가 줄 묶음 {}번을 기다려 다시 보냅니다 (meetingId={}, 보낸 번호 {})",
                     expected, feed.getMeetingId(), batch);

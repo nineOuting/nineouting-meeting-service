@@ -10,11 +10,14 @@ import org.springframework.web.client.RestClientException;
 /**
  * ai-service 호출 (docs/services/ai-integration.md 2.4, ai-service docs/api/input-contract.md). 타임아웃은 AiClientConfig에서 정한다.
  * 응답이 2xx면 받은 것으로 본다 (이미 받은 묶음 duplicate, 종료 뒤 ignored도 200이라 다시 보내지 않는다).
+ * 408·429·5xx·연결 실패는 다시 보낼 일(AiServiceException), 그 밖의 4xx는 다시 보내도 소용없는 거절(AiRejectedException).
  * 호출 시간·실패는 RestClient 관측으로 http.client.requests 지표에 남는다.
  */
 public class AiServiceClient {
 
     private static final String EXPECTED_BATCH = "expectedBatch";
+    /** 로그에 남길 거절 응답 본문 길이 */
+    private static final int MAX_BODY_IN_LOG = 300;
 
     private final RestClient restClient;
 
@@ -63,7 +66,7 @@ public class AiServiceClient {
                     return expected.intValue();
                 }
             }
-            throw new AiServiceException("ai-service가 줄 묶음을 거절했습니다: " + e.getStatusCode(), e);
+            throw clientError("줄 묶음", e);
         } catch (RestClientException e) {
             throw new AiServiceException("ai-service 호출 실패: " + e.getMessage(), e);
         }
@@ -72,8 +75,25 @@ public class AiServiceClient {
     private static void call(Runnable request) {
         try {
             request.run();
+        } catch (HttpClientErrorException e) {
+            throw clientError("회의 알림", e);
         } catch (RestClientException e) {
             throw new AiServiceException("ai-service 호출 실패: " + e.getMessage(), e);
         }
+    }
+
+    /** 408(시간 초과)·429(너무 많은 요청)는 잠시 뒤 다시 보내면 되고, 그 밖의 4xx는 거절이다 */
+    private static AiServiceException clientError(String what, HttpClientErrorException e) {
+        int status = e.getStatusCode().value();
+        String message = "ai-service가 " + what + "을 거절했습니다: " + e.getStatusCode() + " " + body(e);
+        if (status == HttpStatus.REQUEST_TIMEOUT.value() || status == HttpStatus.TOO_MANY_REQUESTS.value()) {
+            return new AiServiceException(message, e);
+        }
+        return new AiRejectedException(message, e);
+    }
+
+    private static String body(HttpClientErrorException e) {
+        String body = e.getResponseBodyAsString();
+        return body.length() > MAX_BODY_IN_LOG ? body.substring(0, MAX_BODY_IN_LOG) + "…" : body;
     }
 }

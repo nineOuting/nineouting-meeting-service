@@ -38,7 +38,8 @@
 | PATCH | `/api/meetings/{meetingId}/transcripts/{seq}` | 확정된 줄 고치기 (회의록 작성자, 진행 중) |
 | DELETE | `/api/meetings/{meetingId}/transcripts/{seq}` | 줄 지우기 (회의록 작성자, 진행 중) |
 | POST | `/api/meetings/{meetingId}/room-ticket` | 회의방 WebSocket용 30초 1회용 입장권 (참석자, 진행 중) |
-| WS | `/ws/meetings/{meetingId}?ticket=...` | 회의방: 전사 텍스트(`transcript`)·수정(`transcriptEdited`)·삭제(`transcriptDeleted`)·멈춤·재개(`paused`·`resumed`)·AI 일시 중단(`aiStatus`)·마무리(`finished`)를 실시간으로 받는다 |
+| GET | `/api/meetings/{meetingId}/live-summary` | 회의 중 요약 (참석자, 없으면 null) |
+| WS | `/ws/meetings/{meetingId}?ticket=...` | 회의방: 전사 텍스트(`transcript`)·수정(`transcriptEdited`)·삭제(`transcriptDeleted`)·멈춤·재개(`paused`·`resumed`)·AI 일시 중단(`aiStatus`)·회의 중 요약(`liveSummary`)·마무리(`finished`)를 실시간으로 받는다 |
 
 stt-service가 클러스터 안에서 부르는 주소 (Gateway가 외부로 열지 않는다):
 
@@ -47,6 +48,7 @@ stt-service가 클러스터 안에서 부르는 주소 (Gateway가 외부로 열
 | POST | `/internal/stt-tickets/{ticket}/consume` | 입장권 확인 (한 번 쓰면 지움) → `meetingId`, `userId` |
 | POST | `/internal/meetings/{meetingId}/transcripts` | 전사 텍스트 저장 (`rev`가 클 때만, 확정된 줄은 그대로) |
 | POST | `/internal/meetings/{meetingId}/events` | 회의 진행 알림 (`start`·`pause`·`resume`·`end`, 서버 시각을 붙여 저장) |
+| PUT | `/internal/meetings/{meetingId}/live-summary` | ai-service가 보내는 회의 중 요약 (`version`이 클 때만 반영, 회의방에 `liveSummary`) |
 
 ai-service로는 회의 알림을 바로, 줄 묶음을 10초마다 밀어 준다 (`POST /internal/meetings/{id}/events`, `POST /internal/meetings/{id}/batches`, `meetingId`는 문자열). 종료 알림은 남은 줄을 보낸 뒤에 보낸다. `AI_SERVICE_URL`이 비어 있으면 보내지 않는다.
 

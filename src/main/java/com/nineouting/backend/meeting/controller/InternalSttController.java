@@ -1,10 +1,12 @@
 package com.nineouting.backend.meeting.controller;
 
 import com.nineouting.backend.common.web.response.ApiResponse;
+import com.nineouting.backend.meeting.dto.LiveSummaryRequest;
 import com.nineouting.backend.meeting.dto.ProgressEventRequest;
 import com.nineouting.backend.meeting.dto.SttTicketOwnerResponse;
 import com.nineouting.backend.meeting.dto.TranscriptSegmentsRequest;
 import com.nineouting.backend.meeting.service.ConnectionTicketService;
+import com.nineouting.backend.meeting.service.LiveSummaryService;
 import com.nineouting.backend.meeting.service.ProgressEventService;
 import com.nineouting.backend.meeting.service.TranscriptService;
 import jakarta.validation.Valid;
@@ -12,11 +14,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * stt-service가 클러스터 안에서 부르는 주소 (docs/services/ai-integration.md 2장).
+ * stt-service·ai-service가 클러스터 안에서 부르는 주소 (docs/services/ai-integration.md 2장).
  * Gateway가 /internal을 외부로 열지 않는다.
  */
 @RestController
@@ -26,6 +29,7 @@ public class InternalSttController {
     private final ConnectionTicketService ticketService;
     private final TranscriptService transcriptService;
     private final ProgressEventService progressEventService;
+    private final LiveSummaryService liveSummaryService;
 
     /** 2.1 음성 연결 입장권 확인. 한 번 쓰면 지운다. 없거나 만료면 401 INVALID_STT_TICKET */
     @PostMapping("/internal/stt-tickets/{ticket}/consume")
@@ -38,6 +42,14 @@ public class InternalSttController {
     public ResponseEntity<Void> saveTranscripts(@PathVariable Long meetingId,
                                                 @Valid @RequestBody TranscriptSegmentsRequest request) {
         transcriptService.saveFromStt(meetingId, request.segments());
+        return ResponseEntity.noContent().build();
+    }
+
+    /** 2.5 ai-service가 보내는 회의 중 요약 (ai-service docs/api/output-contract.md) */
+    @PutMapping("/internal/meetings/{meetingId}/live-summary")
+    public ResponseEntity<Void> receiveLiveSummary(@PathVariable Long meetingId,
+                                                   @Valid @RequestBody LiveSummaryRequest request) {
+        liveSummaryService.receive(meetingId, request);
         return ResponseEntity.noContent().build();
     }
 

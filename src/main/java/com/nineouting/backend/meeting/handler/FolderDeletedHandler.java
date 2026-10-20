@@ -7,6 +7,7 @@ import com.nineouting.backend.meeting.repository.AgendaRepository;
 import com.nineouting.backend.meeting.repository.AiBatchRepository;
 import com.nineouting.backend.meeting.repository.AiFeedRepository;
 import com.nineouting.backend.meeting.repository.ConnectionTicketRepository;
+import com.nineouting.backend.meeting.repository.LiveSummaryRepository;
 import com.nineouting.backend.meeting.repository.MeetingAttendeeRepository;
 import com.nineouting.backend.meeting.repository.MeetingRepository;
 import com.nineouting.backend.meeting.repository.PendingAgendaRepository;
@@ -36,6 +37,7 @@ public class FolderDeletedHandler implements InboxHandler {
     private final ConnectionTicketRepository connectionTicketRepository;
     private final AiFeedRepository aiFeedRepository;
     private final AiBatchRepository aiBatchRepository;
+    private final LiveSummaryRepository liveSummaryRepository;
 
     @Override
     public boolean supports(String eventType) {
@@ -56,6 +58,7 @@ public class FolderDeletedHandler implements InboxHandler {
             connectionTicketRepository.deleteByMeetingIdIn(meetingIds);
             aiFeedRepository.deleteByMeetingIdIn(meetingIds);
             aiBatchRepository.deleteByMeetingIdIn(meetingIds);
+            liveSummaryRepository.deleteByMeetingIdIn(meetingIds);
             attendeeRepository.deleteByMeetingIdIn(meetingIds);
             meetingRepository.deleteAllByIdIn(meetingIds);
         }

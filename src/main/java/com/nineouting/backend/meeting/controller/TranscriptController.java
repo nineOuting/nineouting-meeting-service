@@ -4,9 +4,11 @@ import com.nineouting.backend.common.security.jwt.AuthenticatedUser;
 import com.nineouting.backend.common.security.web.CurrentUser;
 import com.nineouting.backend.common.web.response.ApiResponse;
 import com.nineouting.backend.meeting.dto.EditTranscriptRequest;
+import com.nineouting.backend.meeting.dto.LiveSummaryResponse;
 import com.nineouting.backend.meeting.dto.TicketResponse;
 import com.nineouting.backend.meeting.dto.TranscriptLineResponse;
 import com.nineouting.backend.meeting.service.ConnectionTicketService;
+import com.nineouting.backend.meeting.service.LiveSummaryService;
 import com.nineouting.backend.meeting.service.TranscriptService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -26,6 +28,7 @@ public class TranscriptController {
 
     private final ConnectionTicketService ticketService;
     private final TranscriptService transcriptService;
+    private final LiveSummaryService liveSummaryService;
 
     /** 음성 연결(stt-service WebSocket)에 붙일 30초짜리 1회용 입장권. 회의록 작성자, 진행 중 */
     @PostMapping("/api/meetings/{meetingId}/stt-ticket")
@@ -44,6 +47,13 @@ public class TranscriptController {
     public ApiResponse<List<TranscriptLineResponse>> list(@CurrentUser AuthenticatedUser user,
                                                           @PathVariable Long meetingId) {
         return ApiResponse.ok(transcriptService.list(meetingId, user.userId()));
+    }
+
+    /** REQ-075 회의 중 요약 (ai-service가 1분 정도마다 갱신). 참석자. 아직 없으면 data: null */
+    @GetMapping("/api/meetings/{meetingId}/live-summary")
+    public ApiResponse<LiveSummaryResponse> liveSummary(@CurrentUser AuthenticatedUser user,
+                                                        @PathVariable Long meetingId) {
+        return ApiResponse.ok(liveSummaryService.find(meetingId, user.userId()));
     }
 
     /** REQ-112. 회의록 작성자, 진행 중 */

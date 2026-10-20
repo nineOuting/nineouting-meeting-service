@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -23,6 +24,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.ResultActions;
 
 /** 회의방 WebSocket: 참석자 화면에 전사 텍스트·수정본을 실시간으로 보낸다 (REQ-072, 112) */
 class MeetingRoomTest extends ApiTestSupport {
@@ -129,6 +131,55 @@ class MeetingRoomTest extends ApiTestSupport {
         }
         assertThat(room.nextAiStatus()).isTrue();
         room.socket.abort();
+    }
+
+    @Test
+    void ai_service가_보낸_회의_중_요약은_최신_것만_남기고_회의방에_바로_보낸다() throws Exception {
+        putLiveSummary(meetingId.toString(), 100, false, "시작 전").andExpect(status().isConflict());
+        start();
+        Room room = Room.connect(port, meetingId, roomTicket(attendee));
+        call(attendee, get(liveSummaryPath()), null).andExpect(jsonPath("$.data").doesNotExist());
+
+        putLiveSummary(meetingId.toString(), 100, false, "배포는 목요일로 하자는 제안").andExpect(status().isNoContent());
+        String relayed = room.next();
+        assertThat((Object) JsonPath.read(relayed, "$.type")).isEqualTo("liveSummary");
+        assertThat((Object) JsonPath.read(relayed, "$.liveSummary.summary[0].text")).isEqualTo("배포는 목요일로 하자는 제안");
+        assertThat((Object) JsonPath.read(relayed, "$.liveSummary.summary[0].evidence[0].start")).isEqualTo(1.5);
+
+        // 늦게 온 옛 요약은 버린다 (회의방에도 안 보낸다)
+        putLiveSummary(meetingId.toString(), 50, false, "옛 요약").andExpect(status().isNoContent());
+        putLiveSummary(meetingId.toString(), 200, false, "새 요약").andExpect(status().isNoContent());
+        assertThat((Object) JsonPath.read(room.next(), "$.liveSummary.version")).isEqualTo(200);
+        call(attendee, get(liveSummaryPath()), null)
+                .andExpect(jsonPath("$.data.version").value(200))
+                .andExpect(jsonPath("$.data.summary[0].text").value("새 요약"))
+                .andExpect(jsonPath("$.data.summary[0].topic").value("배포"))
+                .andExpect(jsonPath("$.data.final").value(false));
+        call(folderMember, get(liveSummaryPath()), null).andExpect(jsonPath("$.code").value("NOT_MEETING_ATTENDEE"));
+
+        // 마지막 요약은 회의가 끝난 뒤에도 받는다
+        call(writer, post("/api/meetings/" + meetingId + "/finish"), null).andExpect(status().isOk());
+        putLiveSummary(meetingId.toString(), 300, true, "마지막 요약").andExpect(status().isNoContent());
+        call(attendee, get(liveSummaryPath()), null).andExpect(jsonPath("$.data.final").value(true));
+
+        putLiveSummary("m_9999", 400, false, "다른 회의").andExpect(status().isBadRequest());
+        mockMvc.perform(put("/internal/meetings/" + meetingId + "/live-summary")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"version\":1}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    private String liveSummaryPath() {
+        return "/api/meetings/" + meetingId + "/live-summary";
+    }
+
+    private ResultActions putLiveSummary(String bodyMeetingId, long version, boolean isFinal, String text)
+            throws Exception {
+        return mockMvc.perform(put("/internal/meetings/" + meetingId + "/live-summary")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"schemaVersion":"0.1","meetingId":"%s","version":%d,"atMs":134200,"final":%s,
+                         "summary":[{"text":"%s","topic":"배포","evidence":[{"start":1.5,"end":2.0}]}]}"""
+                        .formatted(bodyMeetingId, version, isFinal, text)));
     }
 
     private void assertRejected(Long targetMeetingId, String ticket) {

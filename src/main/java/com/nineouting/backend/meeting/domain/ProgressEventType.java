@@ -5,7 +5,7 @@ import java.util.Locale;
 /** 회의 진행 알림 종류. stt-service·ai-service와는 소문자(start, pause …)로 주고받는다 */
 public enum ProgressEventType {
     START,
-    /** 멈춤·재개는 REQ-119 */
+    /** 멈춤·재개는 REQ-084 */
     PAUSE,
     RESUME,
     END;

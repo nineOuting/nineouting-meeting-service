@@ -14,7 +14,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 폴더의 남은 안건 (REQ-049). 같은 안건을 여러 번 넘겨도 한 줄로 유지하고 마지막으로 넘긴 회의·날짜를 기록한다.
+ * 폴더의 남은 안건 (REQ-051). 같은 안건을 여러 번 넘겨도 한 줄로 유지하고 마지막으로 넘긴 회의·날짜를 기록한다.
  */
 @Getter
 @Entity
@@ -62,7 +62,7 @@ public class PendingAgenda {
         this.status = PendingAgendaStatus.WAITING;
     }
 
-    /** 다음 회의에 불러옴 (REQ-050) */
+    /** 다음 회의에 불러옴 (REQ-052) */
     public void takeBy(Long meetingId) {
         this.status = PendingAgendaStatus.IN_PROGRESS;
         this.takenMeetingId = meetingId;
@@ -82,7 +82,7 @@ public class PendingAgenda {
         this.takenMeetingId = null;
     }
 
-    /** 불러온 회의에서 다시 다음 회의로 넘겼다 (REQ-083) */
+    /** 불러온 회의에서 다시 다음 회의로 넘겼다 (REQ-094) */
     public void carryAgain(Long fromMeetingId, LocalDateTime carriedAt) {
         release();
         this.fromMeetingId = fromMeetingId;

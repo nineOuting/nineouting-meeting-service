@@ -4,7 +4,7 @@ import com.nineouting.backend.meeting.domain.PendingAgendaStatus;
 import java.time.LocalDateTime;
 
 /**
- * 폴더의 남은 안건 (REQ-049, 050).
+ * 폴더의 남은 안건 (REQ-051~052).
  *
  * @param fromMeetingTitle 마지막으로 넘긴 회의 (이월된 회의)
  * @param carriedAt        이월 날짜

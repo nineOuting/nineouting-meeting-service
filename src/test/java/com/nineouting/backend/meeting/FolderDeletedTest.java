@@ -15,7 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import tools.jackson.databind.json.JsonMapper;
 
-/** 실제 Kafka 토픽에 FolderDeleted를 넣고 inbox → 처리기 → 삭제까지 확인한다 (REQ-115) */
+/** 실제 Kafka 토픽에 FolderDeleted를 넣고 inbox → 처리기 → 삭제까지 확인한다 (REQ-058) */
 class FolderDeletedTest extends ApiTestSupport {
 
     private static final Duration WAIT = Duration.ofSeconds(20);

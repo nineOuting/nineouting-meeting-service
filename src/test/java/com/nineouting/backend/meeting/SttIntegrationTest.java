@@ -151,7 +151,7 @@ class SttIntegrationTest extends ApiTestSupport {
         assertThat(JsonPath.<List<Integer>>read(second, "$.edits[*].rev")).containsExactly(2);
         assertThat(JsonPath.<List<String>>read(second, "$.edits[*].text")).containsExactly("배포는 다음 주 목요일");
 
-        // ai-service가 멈춘 동안의 줄은 모아 두었다가 한 묶음으로 보낸다 (REQ-111)
+        // ai-service가 멈춘 동안의 줄은 모아 두었다가 한 묶음으로 보낸다 (REQ-082)
         FakeAiService.respondWith(503);
         try {
             internal(transcripts(), segments(segment(3, 1, "셋째", 5000, 6000L, true)));

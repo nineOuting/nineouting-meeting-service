@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 회의 중 음성 연결·회의방 입장권과 전사 텍스트 (REQ-072, 112) */
+/** 회의 중 음성 연결·회의방 입장권과 전사 텍스트 (REQ-079, 083) */
 @RestController
 @RequiredArgsConstructor
 public class TranscriptController {
@@ -42,21 +42,21 @@ public class TranscriptController {
         return ApiResponse.ok(ticketService.issueRoom(meetingId, user.userId()));
     }
 
-    /** REQ-072. 참석자. startMs 순 */
+    /** REQ-079. 참석자. startMs 순 */
     @GetMapping("/api/meetings/{meetingId}/transcripts")
     public ApiResponse<List<TranscriptLineResponse>> list(@CurrentUser AuthenticatedUser user,
                                                           @PathVariable Long meetingId) {
         return ApiResponse.ok(transcriptService.list(meetingId, user.userId()));
     }
 
-    /** REQ-075 회의 중 요약 (ai-service가 1분 정도마다 갱신). 참석자. 아직 없으면 data: null */
+    /** REQ-085 회의 중 요약 (ai-service가 1분 정도마다 갱신). 참석자. 아직 없으면 data: null */
     @GetMapping("/api/meetings/{meetingId}/live-summary")
     public ApiResponse<LiveSummaryResponse> liveSummary(@CurrentUser AuthenticatedUser user,
                                                         @PathVariable Long meetingId) {
         return ApiResponse.ok(liveSummaryService.find(meetingId, user.userId()));
     }
 
-    /** REQ-112. 회의록 작성자, 진행 중 */
+    /** REQ-083. 회의록 작성자, 진행 중 */
     @PatchMapping("/api/meetings/{meetingId}/transcripts/{seq}")
     public ApiResponse<TranscriptLineResponse> edit(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId,
                                                     @PathVariable int seq,
@@ -64,7 +64,7 @@ public class TranscriptController {
         return ApiResponse.ok(transcriptService.edit(meetingId, user.userId(), seq, request.text()));
     }
 
-    /** REQ-112. 회의록 작성자, 진행 중 */
+    /** REQ-083. 회의록 작성자, 진행 중 */
     @DeleteMapping("/api/meetings/{meetingId}/transcripts/{seq}")
     public ApiResponse<Void> delete(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId,
                                     @PathVariable int seq) {

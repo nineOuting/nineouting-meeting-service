@@ -1,6 +1,6 @@
 package com.nineouting.backend.meeting.domain;
 
-/** 폴더의 남은 안건 상태 (REQ-049, 050) */
+/** 폴더의 남은 안건 상태 (REQ-051~052) */
 public enum PendingAgendaStatus {
     /** 대기: 회의에서 다음 회의로 넘김 */
     WAITING,

@@ -30,15 +30,15 @@ class MeetingProgressTest extends ApiTestSupport {
     }
 
     @Test
-    void 참석자가_시작하고_회의록_작성자가_안건을_추가하고_마무리한다() throws Exception {
+    void 회의록_작성자가_시작하고_안건을_추가하고_마무리한다() throws Exception {
         Long meetingId = createMeeting(folderId, owner, writer, writer);
 
-        call(folderMember, post("/api/meetings/" + meetingId + "/start"), null)
-                .andExpect(jsonPath("$.code").value("NOT_MEETING_ATTENDEE"));
+        call(owner, post("/api/meetings/" + meetingId + "/start"), null)
+                .andExpect(jsonPath("$.code").value("NOT_MEETING_WRITER"));
         call(writer, post("/api/meetings/" + meetingId + "/agendas"), "{\"title\":\"추가\",\"decisionPoint\":\"결정\"}")
                 .andExpect(jsonPath("$.code").value("MEETING_NOT_IN_PROGRESS"));
-        call(owner, post("/api/meetings/" + meetingId + "/start"), null).andExpect(status().isOk());
-        call(owner, post("/api/meetings/" + meetingId + "/start"), null)
+        call(writer, post("/api/meetings/" + meetingId + "/start"), null).andExpect(status().isOk());
+        call(writer, post("/api/meetings/" + meetingId + "/start"), null)
                 .andExpect(jsonPath("$.code").value("MEETING_ALREADY_STARTED"));
 
         call(owner, post("/api/meetings/" + meetingId + "/agendas"), "{\"title\":\"추가\",\"decisionPoint\":\"결정\"}")
@@ -91,7 +91,7 @@ class MeetingProgressTest extends ApiTestSupport {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("PENDING_AGENDA_UNAVAILABLE"));
 
-        call(owner, post("/api/meetings/" + second + "/start"), null);
+        call(writer, post("/api/meetings/" + second + "/start"), null);
         call(writer, post("/api/meetings/" + second + "/finish"), null);
         call(owner, get("/api/folders/" + folderId + "/pending-agendas"), null)
                 .andExpect(jsonPath("$.data.length()").value(0));

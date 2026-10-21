@@ -31,7 +31,7 @@ public class MeetingController {
 
     private final MeetingService meetingService;
 
-    /** REQ-047, 056~067 */
+    /** REQ-049, 059~063, 065~071 */
     @PostMapping("/api/folders/{folderId}/meetings")
     public ResponseEntity<ApiResponse<MeetingDetailResponse>> create(@CurrentUser AuthenticatedUser user,
                                                                      @PathVariable Long folderId,
@@ -40,7 +40,7 @@ public class MeetingController {
                 .body(ApiResponse.ok(meetingService.create(folderId, user.userId(), request)));
     }
 
-    /** REQ-046 */
+    /** REQ-048 */
     @GetMapping("/api/folders/{folderId}/meetings")
     public ApiResponse<MeetingPageResponse> list(@CurrentUser AuthenticatedUser user, @PathVariable Long folderId,
                                                  @RequestParam(defaultValue = "0") int page,
@@ -55,27 +55,27 @@ public class MeetingController {
         return ApiResponse.ok(meetingService.calendar(user.userId(), from, to));
     }
 
-    /** REQ-060, 068, 069 */
+    /** REQ-063, 074~075 */
     @GetMapping("/api/meetings/{meetingId}")
     public ApiResponse<MeetingDetailResponse> get(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId) {
         return ApiResponse.ok(meetingService.get(meetingId, user.userId()));
     }
 
-    /** REQ-116 */
+    /** REQ-064 */
     @PutMapping("/api/meetings/{meetingId}")
     public ApiResponse<MeetingDetailResponse> update(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId,
                                                      @Valid @RequestBody MeetingRequest request) {
         return ApiResponse.ok(meetingService.update(meetingId, user.userId(), request));
     }
 
-    /** REQ-113 */
+    /** REQ-073 */
     @PostMapping("/api/meetings/{meetingId}/cancel")
     public ApiResponse<Void> cancel(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId) {
         meetingService.cancel(meetingId, user.userId());
         return ApiResponse.ok();
     }
 
-    /** REQ-043 */
+    /** REQ-045 */
     @PutMapping("/api/meetings/{meetingId}/folder")
     public ApiResponse<Void> move(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId,
                                   @Valid @RequestBody MoveFolderRequest request) {

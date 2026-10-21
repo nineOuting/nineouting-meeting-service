@@ -9,11 +9,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 회의 생성(REQ-056~067)·수정(REQ-116). 시각은 한국 시간.
+ * 회의 생성(REQ-059~063, 065~071)·수정(REQ-064). 시각은 한국 시간.
  *
  * @param attendeeUserIds   참석자. 만든 사람은 없어도 들어간다
- * @param agendas           배열 순서 = 안건 순서 (REQ-065)
- * @param previousMeetingId 이어서 만들기(REQ-047)의 이전 회의. 생성할 때만 쓴다
+ * @param agendas           배열 순서 = 안건 순서 (REQ-069)
+ * @param previousMeetingId 이어서 만들기(REQ-049)의 이전 회의. 생성할 때만 쓴다
  */
 public record MeetingRequest(
         @NotBlank(message = "회의명을 입력해 주세요")

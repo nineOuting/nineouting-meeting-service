@@ -3,7 +3,7 @@ package com.nineouting.backend.meeting.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-/** 회의 도중 안건 추가 (REQ-114) */
+/** 회의 도중 안건 추가 (REQ-090) */
 public record AddAgendaRequest(
         @NotBlank(message = "안건을 입력해 주세요")
         @Size(max = 100, message = "안건은 100자 이하로 입력해 주세요")

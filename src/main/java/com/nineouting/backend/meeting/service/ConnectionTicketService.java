@@ -24,8 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * WebSocket 연결용 1회용 입장권 (docs/services/ai-integration.md 2.1, meeting-service.md 4.3.2).
  * <ul>
- *   <li>음성 연결(STT): 회의록 작성자의 브라우저만. stt-service가 /internal로 확인한다 (REQ-072)</li>
- *   <li>회의방: 참석자 누구나. 회의방 WebSocket 연결을 받을 때 meeting-service가 확인한다 (REQ-072, 112)</li>
+ *   <li>음성 연결(STT): 회의록 작성자의 브라우저만. stt-service가 /internal로 확인한다 (REQ-079)</li>
+ *   <li>회의방: 참석자 누구나. 회의방 WebSocket 연결을 받을 때 meeting-service가 확인한다 (REQ-079, 083)</li>
  * </ul>
  * 둘 다 진행 중인 회의에서만 주고, 확인하면 지운다. 그사이 회의가 끝났거나 권한이 바뀌었어도 거절한다.
  */

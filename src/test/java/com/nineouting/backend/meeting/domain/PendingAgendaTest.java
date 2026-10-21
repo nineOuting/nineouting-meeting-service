@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 
-/** 남은 안건 상태 (REQ-049, 050, 083): 대기 → 진행 중 → 처리됨 (DB 없이) */
+/** 남은 안건 상태 (REQ-051~052, 094): 대기 → 진행 중 → 처리됨 (DB 없이) */
 class PendingAgendaTest {
 
     private static final LocalDateTime CARRIED = LocalDateTime.of(2026, 10, 20, 15, 0);

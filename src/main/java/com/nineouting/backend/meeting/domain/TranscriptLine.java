@@ -12,7 +12,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 전사 텍스트 한 줄 (REQ-072, 112, docs/services/ai-integration.md 2.2).
+ * 전사 텍스트 한 줄 (REQ-079, 083, docs/services/ai-integration.md 2.2).
  * stt-service가 보낸 줄은 저장소의 upsert로 들어오고(rev가 더 클 때만, 확정된 줄은 그대로),
  * 확정된 뒤의 변경은 모두 회의록 작성자의 수정·삭제다. 수정·삭제할 때마다 rev를 1씩 이어서 올린다.
  */

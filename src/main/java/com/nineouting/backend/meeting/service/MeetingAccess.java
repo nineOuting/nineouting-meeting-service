@@ -41,7 +41,7 @@ public class MeetingAccess {
         return meeting;
     }
 
-    /** 수정·취소·폴더 이동: 회의를 만든 사람만 */
+    /** 폴더 이동: 회의를 만든 사람만 */
     public Meeting requireOwner(Long meetingId, Long userId) {
         Meeting meeting = requireViewable(meetingId, userId);
         if (!meeting.isOwnedBy(userId)) {
@@ -50,9 +50,9 @@ public class MeetingAccess {
         return meeting;
     }
 
-    /** 수정·취소: 만든 사람만, 시작 전에만 */
+    /** 수정·취소: 참석자 모두, 시작 전에만 (REQ-064, 073) */
     public Meeting requireEditable(Long meetingId, Long userId) {
-        Meeting meeting = requireOwner(meetingId, userId);
+        Meeting meeting = requireAttendee(meetingId, userId);
         if (!meeting.is(MeetingStatus.SCHEDULED)) {
             throw new BusinessException(MeetingErrorCode.MEETING_NOT_EDITABLE);
         }
@@ -80,12 +80,18 @@ public class MeetingAccess {
         return meeting;
     }
 
-    /** 회의 중 안건 추가·다음 회의로 넘기기·마무리: 회의록 작성자만, 진행 중에만 */
-    public Meeting requireWriterInProgress(Long meetingId, Long userId) {
+    /** 회의 시작: 회의록 작성자만 (REQ-076) */
+    public Meeting requireWriter(Long meetingId, Long userId) {
         Meeting meeting = requireViewable(meetingId, userId);
         if (!meeting.isWriter(userId)) {
             throw new BusinessException(MeetingErrorCode.NOT_MEETING_WRITER);
         }
+        return meeting;
+    }
+
+    /** 회의 중 안건 추가·다음 회의로 넘기기·마무리: 회의록 작성자만, 진행 중에만 */
+    public Meeting requireWriterInProgress(Long meetingId, Long userId) {
+        Meeting meeting = requireWriter(meetingId, userId);
         if (!meeting.is(MeetingStatus.IN_PROGRESS)) {
             throw new BusinessException(MeetingErrorCode.MEETING_NOT_IN_PROGRESS);
         }

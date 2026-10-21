@@ -16,7 +16,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * 회의방 WebSocket (REQ-072, 112): 참석자 화면에 전사 텍스트와 수정본을 실시간으로 보낸다.
+ * 회의방 WebSocket (REQ-079, 083): 참석자 화면에 전사 텍스트와 수정본을 실시간으로 보낸다.
  * 연결 권한은 RoomTicketInterceptor가 입장권으로 확인한다. 브라우저는 받기만 하고, 보내는 메시지는 무시한다.
  * 이 인스턴스에 연결된 참석자에게만 보낸다. 다른 인스턴스에 붙은 참석자에게는 RoomFanout(Redis Pub/Sub)이 나눠 준다.
  * ai-service 상태(aiStatus)는 인스턴스마다 직접 확인해 자기 연결에 보낸다 (AiHealthMonitor).

@@ -6,7 +6,7 @@ import com.nineouting.backend.meeting.domain.MinutesProgress;
 import java.time.LocalDateTime;
 
 /**
- * 폴더 내 회의 목록 항목 (REQ-046).
+ * 폴더 내 회의 목록 항목 (REQ-048).
  *
  * @param minutesStatus 회의록 검토 중·확정. 검토 요청 전이면 null
  */

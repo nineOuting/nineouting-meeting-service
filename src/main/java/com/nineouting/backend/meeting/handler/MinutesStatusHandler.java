@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * REQ-046: minutes-service의 검토 요청·확정을 받아 회의 목록·캘린더에 "검토 중·확정"을 표시한다.
+ * REQ-048: minutes-service의 검토 요청·확정을 받아 회의 목록·캘린더에 "검토 중·확정"을 표시한다.
  * 회의가 이미 지워졌으면(폴더 삭제) 할 일이 없다.
  */
 @Component

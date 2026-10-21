@@ -26,7 +26,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.ResultActions;
 
-/** 회의방 WebSocket: 참석자 화면에 전사 텍스트·수정본을 실시간으로 보낸다 (REQ-072, 112) */
+/** 회의방 WebSocket: 참석자 화면에 전사 텍스트·수정본을 실시간으로 보낸다 (REQ-079, 083) */
 class MeetingRoomTest extends ApiTestSupport {
 
     private static final long WAIT_SECONDS = 10;
@@ -78,7 +78,7 @@ class MeetingRoomTest extends ApiTestSupport {
         assertThat((Object) JsonPath.read(deleted, "$.type")).isEqualTo("transcriptDeleted");
         assertThat((Object) JsonPath.read(deleted, "$.seq")).isEqualTo(1);
 
-        // 멈춤·재개는 회의록 작성자만, 참석자 화면에 알린다 (REQ-119)
+        // 멈춤·재개는 회의록 작성자만, 참석자 화면에 알린다 (REQ-084)
         call(attendee, post("/api/meetings/" + meetingId + "/pause"), null)
                 .andExpect(jsonPath("$.code").value("NOT_MEETING_WRITER"));
         call(writer, post("/api/meetings/" + meetingId + "/resume"), null)

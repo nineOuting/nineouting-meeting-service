@@ -71,7 +71,7 @@ public class MeetingService {
     private final OutboxEventWriter outboxEventWriter;
     private final Clock clock;
 
-    /** REQ-047, 056~062, 064~067. 만든 사람은 참석자로 자동으로 들어간다. */
+    /** REQ-049, 059~063, 065~066, 068~071. 만든 사람은 참석자로 자동으로 들어간다. */
     @Transactional
     public MeetingDetailResponse create(Long folderId, Long userId, MeetingRequest request) {
         FolderAccess folder = access.requireFolderAccess(folderId, userId);
@@ -95,13 +95,13 @@ public class MeetingService {
         return detail(meeting);
     }
 
-    /** REQ-068, 069 (대기 화면), REQ-060 (이전 설정 불러오기) */
+    /** REQ-074~075 (대기 화면), REQ-063 (이전 설정 불러오기) */
     @Transactional(readOnly = true)
     public MeetingDetailResponse get(Long meetingId, Long userId) {
         return detail(access.requireViewable(meetingId, userId));
     }
 
-    /** REQ-046. 시작 시각 최신순, 취소된 회의는 숨긴다. */
+    /** REQ-048. 시작 시각 최신순, 취소된 회의는 숨긴다. */
     @Transactional(readOnly = true)
     public MeetingPageResponse list(Long folderId, Long userId, int page, int size) {
         access.requireFolderAccess(folderId, userId);
@@ -112,7 +112,7 @@ public class MeetingService {
                 result.getSize(), result.getTotalElements(), result.hasNext());
     }
 
-    /** REQ-116. 만든 사람만, 시작 전에만. 새로 추가된 사람·빠진 사람을 이벤트에 담는다. */
+    /** REQ-064. 참석자 모두, 시작 전에만. 새로 추가된 사람·빠진 사람을 이벤트에 담는다. */
     @Transactional
     public MeetingDetailResponse update(Long meetingId, Long userId, MeetingRequest request) {
         Meeting meeting = access.requireEditable(meetingId, userId);
@@ -148,7 +148,7 @@ public class MeetingService {
         return detail(meeting);
     }
 
-    /** REQ-113. 만든 사람만, 시작 전에만. 불러온 남은 안건은 다시 대기로 돌린다. */
+    /** REQ-073. 참석자 모두, 시작 전에만. 불러온 남은 안건은 다시 대기로 돌린다. */
     @Transactional
     public void cancel(Long meetingId, Long userId) {
         Meeting meeting = access.requireEditable(meetingId, userId);
@@ -161,7 +161,7 @@ public class MeetingService {
                         meeting.getStartAt(), meeting.getOwnerUserId(), List.copyOf(attendeeIds(meetingId))));
     }
 
-    /** REQ-043. 만든 사람만, 상태와 상관없이. 같은 워크스페이스에서 들어갈 수 있는 폴더로만 옮긴다. */
+    /** REQ-045. 만든 사람만, 상태와 상관없이. 같은 워크스페이스에서 들어갈 수 있는 폴더로만 옮긴다. */
     @Transactional
     public void move(Long meetingId, Long userId, Long folderId) {
         Meeting meeting = access.requireOwner(meetingId, userId);
@@ -230,7 +230,7 @@ public class MeetingService {
         return attendees;
     }
 
-    /** REQ-057 시간, REQ-058 참석자는 폴더에 들어갈 수 있는 사람만, 회의록 작성자는 참석자 중에서 */
+    /** REQ-060 시간, REQ-061 참석자는 폴더에 들어갈 수 있는 사람만, 회의록 작성자는 참석자 중에서 */
     private void validate(Long folderId, MeetingRequest request, Set<Long> attendees) {
         if (!request.endAt().isAfter(request.startAt())) {
             throw new BusinessException(MeetingErrorCode.MEETING_TIME_INVALID);
@@ -243,7 +243,7 @@ public class MeetingService {
         }
     }
 
-    /** 안건은 요청 순서대로 저장한다. 남은 안건을 불러오면 진행 중으로 바꾼다 (REQ-050, 064). */
+    /** 안건은 요청 순서대로 저장한다. 남은 안건을 불러오면 진행 중으로 바꾼다 (REQ-052, 068). */
     private void saveAgendas(Meeting meeting, List<AgendaRequest> agendas) {
         Set<Long> usedPendingIds = new HashSet<>();
         for (int position = 0; position < agendas.size(); position++) {

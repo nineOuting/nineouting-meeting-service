@@ -94,16 +94,16 @@ class MeetingFlowTest extends ApiTestSupport {
     }
 
     @Test
-    void 만든_사람만_시작_전에_수정할_수_있고_추가된_사람과_빠진_사람을_알린다() throws Exception {
+    void 참석자는_시작_전에_수정할_수_있고_추가된_사람과_빠진_사람을_알린다() throws Exception {
         Long third = newId();
         Long folder = folder(workspaceId, "개발", owner, member, third);
         Long meetingId = createMeeting(folder, owner, owner, member);
         String changed = meetingJson("바뀐 회의", "2026-10-21T10:00:00", "2026-10-21T11:00:00", third, List.of(third),
                 "{\"title\":\"새 안건\",\"decisionPoint\":\"새 결정\"}");
 
+        call(third, put("/api/meetings/" + meetingId), changed)
+                .andExpect(jsonPath("$.code").value("NOT_MEETING_ATTENDEE"));
         call(member, put("/api/meetings/" + meetingId), changed)
-                .andExpect(jsonPath("$.code").value("NOT_MEETING_OWNER"));
-        call(owner, put("/api/meetings/" + meetingId), changed)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.title").value("바뀐 회의"))
                 .andExpect(jsonPath("$.data.attendees[*].userId", containsInAnyOrder(owner.intValue(), third.intValue())))
@@ -122,9 +122,9 @@ class MeetingFlowTest extends ApiTestSupport {
     void 취소한_회의는_목록과_캘린더에서_숨기고_참석자에게_알린다() throws Exception {
         Long meetingId = createMeeting(folderId, owner, owner, member);
 
-        call(member, post("/api/meetings/" + meetingId + "/cancel"), null)
-                .andExpect(jsonPath("$.code").value("NOT_MEETING_OWNER"));
-        call(owner, post("/api/meetings/" + meetingId + "/cancel"), null).andExpect(status().isOk());
+        call(outsider, post("/api/meetings/" + meetingId + "/cancel"), null)
+                .andExpect(status().isForbidden());
+        call(member, post("/api/meetings/" + meetingId + "/cancel"), null).andExpect(status().isOk());
 
         call(member, get("/api/meetings/" + meetingId), null).andExpect(jsonPath("$.data.status").value("CANCELLED"));
         call(member, get("/api/folders/" + folderId + "/meetings"), null)

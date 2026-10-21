@@ -25,7 +25,7 @@ public class AiServiceClient {
         this.restClient = restClient;
     }
 
-    /** GET /health가 2xx면 정상 (REQ-111 AI 일시 중단 감지) */
+    /** GET /health가 2xx면 정상 (REQ-082 AI 일시 중단 감지) */
     public boolean isHealthy() {
         try {
             restClient.get().uri("/health").retrieve().toBodilessEntity();

@@ -13,8 +13,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 회의 안건 (REQ-061, 062). position 순서로 보여 준다 (REQ-065).
- * pendingAgendaId: 남은 안건에서 불러왔거나(REQ-064), 이 안건을 다음 회의로 넘겼을 때(REQ-083) 그 남은 안건.
+ * 회의 안건 (REQ-065~066). position 순서로 보여 준다 (REQ-069).
+ * pendingAgendaId: 남은 안건에서 불러왔거나(REQ-068), 이 안건을 다음 회의로 넘겼을 때(REQ-094) 그 남은 안건.
  */
 @Getter
 @Entity

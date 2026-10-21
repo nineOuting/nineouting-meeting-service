@@ -47,10 +47,10 @@ public class MeetingProgressService {
     private final ApplicationEventPublisher events;
     private final Clock clock;
 
-    /** REQ-070. 참석자 누구나, 예정 상태면 언제든 */
+    /** REQ-076. 회의록 작성자만, 예정 상태면 언제든 */
     @Transactional
     public void start(Long meetingId, Long userId) {
-        Meeting meeting = access.requireAttendee(meetingId, userId);
+        Meeting meeting = access.requireWriter(meetingId, userId);
         if (!meeting.is(MeetingStatus.SCHEDULED)) {
             throw new BusinessException(MeetingErrorCode.MEETING_ALREADY_STARTED);
         }
@@ -60,7 +60,7 @@ public class MeetingProgressService {
         aiFeedRepository.save(new AiFeed(meetingId, now));
     }
 
-    /** REQ-119. 회의록 작성자, 진행 중. 녹음·경과 시간이 멈춘다 (음성은 브라우저가 STT에 멈춤을 보낸다) */
+    /** REQ-084. 회의록 작성자, 진행 중. 녹음·경과 시간이 멈춘다 (음성은 브라우저가 STT에 멈춤을 보낸다) */
     @Transactional
     public void pause(Long meetingId, Long userId) {
         Meeting meeting = access.requireWriterInProgress(meetingId, userId);
@@ -71,7 +71,7 @@ public class MeetingProgressService {
         events.publishEvent(RoomEvent.send(meetingId, RoomMessage.paused()));
     }
 
-    /** REQ-119. 회의록 작성자, 진행 중 */
+    /** REQ-084. 회의록 작성자, 진행 중 */
     @Transactional
     public void resume(Long meetingId, Long userId) {
         Meeting meeting = access.requireWriterInProgress(meetingId, userId);
@@ -82,7 +82,7 @@ public class MeetingProgressService {
         events.publishEvent(RoomEvent.send(meetingId, RoomMessage.resumed()));
     }
 
-    /** REQ-114. 회의록 작성자, 진행 중. 맨 뒤에 붙인다. */
+    /** REQ-090. 회의록 작성자, 진행 중. 맨 뒤에 붙인다. */
     @Transactional
     public AgendaResponse addAgenda(Long meetingId, Long userId, AddAgendaRequest request) {
         access.requireWriterInProgress(meetingId, userId);
@@ -94,7 +94,7 @@ public class MeetingProgressService {
     }
 
     /**
-     * REQ-083. 고른 안건을 폴더의 남은 안건으로 저장한다.
+     * REQ-094. 고른 안건을 폴더의 남은 안건으로 저장한다.
      * 남은 안건에서 불러온 안건이면 같은 줄을 다시 대기로 돌리고, 이미 넘긴 안건은 다시 넘기지 않는다.
      */
     @Transactional
@@ -121,7 +121,7 @@ public class MeetingProgressService {
     }
 
     /**
-     * REQ-087. 회의록 작성자, 진행 중 → 끝남. 불러와서 다시 넘기지 않은 남은 안건은 처리됨.
+     * REQ-098. 회의록 작성자, 진행 중 → 끝남. 불러와서 다시 넘기지 않은 남은 안건은 처리됨.
      * minutes-service가 회의록(작성 중)을 만들도록 MeetingFinished를 남긴다.
      */
     @Transactional

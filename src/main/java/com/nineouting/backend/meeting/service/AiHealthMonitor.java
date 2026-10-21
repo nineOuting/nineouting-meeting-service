@@ -8,7 +8,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * ai-service 장애 감지 (REQ-111 "AI 일시 중단" 표시). /health를 주기적으로 보고,
+ * ai-service 장애 감지 (REQ-082 "AI 일시 중단" 표시). /health를 주기적으로 보고,
  * 연달아 실패하면 멈춤, 한 번 성공하면 돌아옴으로 바꿔 회의방에 알린다.
  * 밀린 회의 알림·줄 묶음은 AiFeedJob이 복구 뒤 한꺼번에 보낸다.
  */

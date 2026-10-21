@@ -6,8 +6,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 회의 대기 화면 (REQ-068, 069), 이전 설정 불러오기 (REQ-060).
- * 경과 시간(REQ-074) = 지금 - startedAt - pausedSeconds - (paused면 지금 - pausedAt). 멈춘 동안은 늘지 않는다 (REQ-119)
+ * 회의 대기 화면 (REQ-074~075), 이전 설정 불러오기 (REQ-063).
+ * 경과 시간(REQ-081) = 지금 - startedAt - pausedSeconds - (paused면 지금 - pausedAt). 멈춘 동안은 늘지 않는다 (REQ-084)
  */
 public record MeetingDetailResponse(
         Long meetingId,

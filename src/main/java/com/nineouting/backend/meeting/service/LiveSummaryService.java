@@ -18,7 +18,7 @@ import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * 회의 중 요약 (REQ-075, docs/services/ai-integration.md 2.5). ai-service가 1분 정도마다 바뀐 요약을 통째로 보낸다.
+ * 회의 중 요약 (REQ-085, docs/services/ai-integration.md 2.5). ai-service가 1분 정도마다 바뀐 요약을 통째로 보낸다.
  * 회의마다 가장 최신 하나만 두고, 반영하면 커밋 뒤 회의방으로 보낸다.
  */
 @Service

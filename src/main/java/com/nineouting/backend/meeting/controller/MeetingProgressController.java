@@ -28,28 +28,28 @@ public class MeetingProgressController {
     private final MeetingProgressService progressService;
     private final PendingAgendaService pendingAgendaService;
 
-    /** REQ-070 */
+    /** REQ-076 */
     @PostMapping("/api/meetings/{meetingId}/start")
     public ApiResponse<Void> start(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId) {
         progressService.start(meetingId, user.userId());
         return ApiResponse.ok();
     }
 
-    /** REQ-119 */
+    /** REQ-084 */
     @PostMapping("/api/meetings/{meetingId}/pause")
     public ApiResponse<Void> pause(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId) {
         progressService.pause(meetingId, user.userId());
         return ApiResponse.ok();
     }
 
-    /** REQ-119 */
+    /** REQ-084 */
     @PostMapping("/api/meetings/{meetingId}/resume")
     public ApiResponse<Void> resume(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId) {
         progressService.resume(meetingId, user.userId());
         return ApiResponse.ok();
     }
 
-    /** REQ-114 */
+    /** REQ-090 */
     @PostMapping("/api/meetings/{meetingId}/agendas")
     public ResponseEntity<ApiResponse<AgendaResponse>> addAgenda(@CurrentUser AuthenticatedUser user,
                                                                  @PathVariable Long meetingId,
@@ -58,7 +58,7 @@ public class MeetingProgressController {
                 .body(ApiResponse.ok(progressService.addAgenda(meetingId, user.userId(), request)));
     }
 
-    /** REQ-083 */
+    /** REQ-094 */
     @PostMapping("/api/meetings/{meetingId}/carry-over")
     public ApiResponse<Void> carryOver(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId,
                                        @Valid @RequestBody CarryOverRequest request) {
@@ -66,14 +66,14 @@ public class MeetingProgressController {
         return ApiResponse.ok();
     }
 
-    /** REQ-087 */
+    /** REQ-098 */
     @PostMapping("/api/meetings/{meetingId}/finish")
     public ApiResponse<Void> finish(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId) {
         progressService.finish(meetingId, user.userId());
         return ApiResponse.ok();
     }
 
-    /** REQ-049, 050 */
+    /** REQ-051~052 */
     @GetMapping("/api/folders/{folderId}/pending-agendas")
     public ApiResponse<List<PendingAgendaResponse>> pendingAgendas(@CurrentUser AuthenticatedUser user,
                                                                    @PathVariable Long folderId) {

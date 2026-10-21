@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 전사 텍스트 저장·조회·수정 (REQ-072, 112, docs/services/ai-integration.md 2.2).
+ * 전사 텍스트 저장·조회·수정 (REQ-079, 083, docs/services/ai-integration.md 2.2).
  * 반영한 줄과 수정·삭제는 커밋된 뒤 회의방 WebSocket으로 참석자 화면에 보낸다 (MeetingRoomRelay).
  */
 @Service
@@ -57,7 +57,7 @@ public class TranscriptService {
                 .toList();
     }
 
-    /** REQ-112. 회의록 작성자, 진행 중. 확정된 줄만 고친다 */
+    /** REQ-083. 회의록 작성자, 진행 중. 확정된 줄만 고친다 */
     @Transactional
     public TranscriptLineResponse edit(Long meetingId, Long userId, int seq, String text) {
         TranscriptLine line = requireEditable(meetingId, userId, seq);
@@ -67,7 +67,7 @@ public class TranscriptService {
         return response;
     }
 
-    /** REQ-112. 회의록 작성자, 진행 중 */
+    /** REQ-083. 회의록 작성자, 진행 중 */
     @Transactional
     public void delete(Long meetingId, Long userId, int seq) {
         TranscriptLine line = requireEditable(meetingId, userId, seq);

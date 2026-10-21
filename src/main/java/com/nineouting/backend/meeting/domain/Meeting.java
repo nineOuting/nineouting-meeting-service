@@ -69,15 +69,15 @@ public class Meeting extends BaseTimeEntity {
     @Column(name = "cancelled_at")
     private LocalDateTime cancelledAt;
 
-    /** 멈춘 시각 (REQ-119). 멈춰 있지 않으면 null. 회의 상태는 진행 중 그대로다 */
+    /** 멈춘 시각 (REQ-084). 멈춰 있지 않으면 null. 회의 상태는 진행 중 그대로다 */
     @Column(name = "paused_at")
     private LocalDateTime pausedAt;
 
-    /** 끝난 멈춤 시간의 합. 경과 시간(REQ-074)에서 뺀다 */
+    /** 끝난 멈춤 시간의 합. 경과 시간(REQ-081)에서 뺀다 */
     @Column(name = "paused_total_ms", nullable = false)
     private long pausedTotalMs;
 
-    /** 회의록 상태 (REQ-046 "검토 중·확정"). minutes-service 이벤트로 바뀐다. 검토를 요청하기 전에는 null */
+    /** 회의록 상태 (REQ-048 "검토 중·확정"). minutes-service 이벤트로 바뀐다. 검토를 요청하기 전에는 null */
     @Enumerated(EnumType.STRING)
     @Column(name = "minutes_status", length = 20)
     private MinutesProgress minutesStatus;
@@ -90,7 +90,7 @@ public class Meeting extends BaseTimeEntity {
         this.status = MeetingStatus.SCHEDULED;
     }
 
-    /** 생성·수정(REQ-116) 때 바꿀 수 있는 정보 */
+    /** 생성·수정(REQ-064) 때 바꿀 수 있는 정보 */
     public void changeInfo(String title, LocalDateTime startAt, LocalDateTime endAt, String location, Long writerUserId) {
         this.title = title;
         this.startAt = startAt;
@@ -124,7 +124,7 @@ public class Meeting extends BaseTimeEntity {
         return pausedAt != null;
     }
 
-    /** REQ-119. 진행 중일 때만 (서비스에서 확인) */
+    /** REQ-084. 진행 중일 때만 (서비스에서 확인) */
     public void pause(LocalDateTime now) {
         this.pausedAt = now;
     }

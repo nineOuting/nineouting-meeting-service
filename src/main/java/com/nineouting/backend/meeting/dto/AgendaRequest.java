@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**
- * @param pendingAgendaId 남은 안건에서 불러온 경우(REQ-064). 프론트는 남은 안건의 제목·결정할 사항을 채워서 보낸다
+ * @param pendingAgendaId 남은 안건에서 불러온 경우(REQ-068). 프론트는 남은 안건의 제목·결정할 사항을 채워서 보낸다
  */
 public record AgendaRequest(
         @NotBlank(message = "안건을 입력해 주세요")

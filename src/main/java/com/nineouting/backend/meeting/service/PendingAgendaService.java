@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 폴더의 남은 안건 (REQ-049, 050).
+ * 폴더의 남은 안건 (REQ-051~052).
  */
 @Service
 @RequiredArgsConstructor

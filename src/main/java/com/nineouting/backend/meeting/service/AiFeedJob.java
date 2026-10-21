@@ -34,7 +34,7 @@ import tools.jackson.databind.json.JsonMapper;
  * 회의 중 ai-service로 회의 알림은 바로, 줄 묶음은 batchInterval마다 밀어 준다 (docs/services/ai-integration.md 2.4).
  * <ul>
  *   <li>회의마다 잠그고 처리하므로 서비스를 여러 개 띄워도 같은 회의를 동시에 보내지 않는다</li>
- *   <li>ai-service가 실패하면 보낼 것을 그대로 두고 다음 주기에 다시 보낸다. 그동안의 변경은 한 묶음에 모인다 (REQ-111)</li>
+ *   <li>ai-service가 실패하면 보낼 것을 그대로 두고 다음 주기에 다시 보낸다. 그동안의 변경은 한 묶음에 모인다 (REQ-082)</li>
  *   <li>ai-service가 빠진 묶음 번호를 알려 주면(409) 저장해 둔 묶음을 그 번호부터 다시 보낸다</li>
  *   <li>종료(end) 알림은 남은 줄을 다 보낸 뒤에 보낸다. 먼저 가면 ai-service가 마지막 구간의 줄을 빠뜨린다</li>
  *   <li>ai-service가 거절하면(408·409·429를 뺀 4xx) 다시 보내지 않고 기록만 한다. 다시 보내면 뒤 묶음이 모두 막힌다</li>

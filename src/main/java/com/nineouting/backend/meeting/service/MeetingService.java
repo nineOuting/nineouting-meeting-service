@@ -259,7 +259,7 @@ public class MeetingService {
                 }
                 pending.takeBy(meeting.getId());
             }
-            agendaRepository.save(new Agenda(meeting.getId(), position, agenda.title(), agenda.decisionPoint(),
+            agendaRepository.save(new Agenda(meeting.getId(), position, agenda.title(), agenda.decisionPoints(),
                     pendingId, false));
         }
     }

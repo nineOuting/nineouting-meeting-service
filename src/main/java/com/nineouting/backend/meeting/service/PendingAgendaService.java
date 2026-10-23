@@ -37,7 +37,7 @@ public class PendingAgendaService {
                         .map(PendingAgenda::getFromMeetingId).distinct().toList()).stream()
                 .collect(Collectors.toMap(Meeting::getId, Meeting::getTitle));
         return pendingAgendas.stream()
-                .map(pending -> new PendingAgendaResponse(pending.getId(), pending.getTitle(), pending.getDecisionPoint(),
+                .map(pending -> new PendingAgendaResponse(pending.getId(), pending.getTitle(), List.copyOf(pending.getDecisionPoints()),
                         pending.getStatus(), pending.getFromMeetingId(), meetingTitles.get(pending.getFromMeetingId()),
                         pending.getCarriedAt(), pending.getTakenMeetingId()))
                 .toList();

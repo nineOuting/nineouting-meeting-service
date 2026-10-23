@@ -126,7 +126,7 @@ public abstract class ApiTestSupport {
     protected Long createMeeting(Long folderId, Long ownerId, Long writerId, Long... attendees) throws Exception {
         return id(call(ownerId, post("/api/folders/" + folderId + "/meetings"),
                 meetingJson("회의", "2026-10-20T14:00:00", "2026-10-20T15:00:00", writerId, List.of(attendees),
-                        "{\"title\":\"안건1\",\"decisionPoint\":\"결정1\"}"))
+                        "{\"title\":\"안건1\",\"decisionPoints\":[\"결정1\"]}"))
                 .andExpect(status().isCreated()), "$.data.meetingId");
     }
 

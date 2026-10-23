@@ -1,14 +1,20 @@
 package com.nineouting.backend.meeting.domain;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -35,8 +41,12 @@ public class PendingAgenda {
     @Column(nullable = false, length = 100)
     private String title;
 
-    @Column(name = "decision_point", nullable = false, length = 500)
-    private String decisionPoint;
+    /** 결정할 사항 (여러 개, 순서대로) */
+    @ElementCollection
+    @CollectionTable(name = "pending_agenda_decision_points", joinColumns = @JoinColumn(name = "pending_agenda_id"))
+    @OrderColumn(name = "position")
+    @Column(name = "content", nullable = false, length = 200)
+    private List<String> decisionPoints = new ArrayList<>();
 
     @Column(name = "from_meeting_id", nullable = false)
     private Long fromMeetingId;
@@ -51,12 +61,12 @@ public class PendingAgenda {
     @Column(name = "taken_meeting_id")
     private Long takenMeetingId;
 
-    public PendingAgenda(Long workspaceId, Long folderId, String title, String decisionPoint, Long fromMeetingId,
-                         LocalDateTime carriedAt) {
+    public PendingAgenda(Long workspaceId, Long folderId, String title, List<String> decisionPoints,
+                         Long fromMeetingId, LocalDateTime carriedAt) {
         this.workspaceId = workspaceId;
         this.folderId = folderId;
         this.title = title;
-        this.decisionPoint = decisionPoint;
+        this.decisionPoints.addAll(decisionPoints);
         this.fromMeetingId = fromMeetingId;
         this.carriedAt = carriedAt;
         this.status = PendingAgendaStatus.WAITING;

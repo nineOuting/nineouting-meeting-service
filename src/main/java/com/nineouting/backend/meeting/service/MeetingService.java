@@ -71,7 +71,7 @@ public class MeetingService {
     private final OutboxEventWriter outboxEventWriter;
     private final Clock clock;
 
-    /** REQ-049, 059~063, 065~066, 068~071. 만든 사람은 참석자로 자동으로 들어간다. */
+    /** REQ-049(레거시), 059~063, 065~066, 068~071. 만든 사람은 참석자로 자동으로 들어간다. */
     @Transactional
     public MeetingDetailResponse create(Long folderId, Long userId, MeetingRequest request) {
         FolderAccess folder = access.requireFolderAccess(folderId, userId);
@@ -176,7 +176,7 @@ public class MeetingService {
                         meeting.getStartAt(), meeting.getOwnerUserId(), List.copyOf(attendeeIds(meetingId))));
     }
 
-    /** REQ-045. 만든 사람만, 상태와 상관없이. 같은 워크스페이스에서 들어갈 수 있는 폴더로만 옮긴다. */
+    /** REQ-045 (레거시). 만든 사람만, 상태와 상관없이. 같은 워크스페이스에서 들어갈 수 있는 폴더로만 옮긴다. */
     @Transactional
     public void move(Long meetingId, Long userId, Long folderId) {
         Meeting meeting = access.requireOwner(meetingId, userId);

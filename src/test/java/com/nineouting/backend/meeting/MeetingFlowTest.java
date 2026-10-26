@@ -168,6 +168,9 @@ class MeetingFlowTest extends ApiTestSupport {
 
         call(member, get("/api/folders/" + folderId + "/meetings").param("size", "2"), null)
                 .andExpect(jsonPath("$.data.items[*].title", contains("2026-10-25", "2026-10-15")))
+                .andExpect(jsonPath("$.data.items[0].writer.userId").value(owner))
+                .andExpect(jsonPath("$.data.items[0].writer.name").value("user" + owner))
+                .andExpect(jsonPath("$.data.items[0].attendees[*].userId", contains(owner.intValue())))
                 .andExpect(jsonPath("$.data.totalCount").value(3))
                 .andExpect(jsonPath("$.data.hasNext").value(true));
         call(member, get("/api/folders/" + folderId + "/meetings").param("size", "2").param("page", "1"), null)

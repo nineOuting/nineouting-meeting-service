@@ -68,7 +68,7 @@ class MeetingProgressTest extends ApiTestSupport {
     }
 
     @Test
-    void 넘긴_안건은_다음_회의에서_불러오면_진행_중이_되고_마무리하면_목록에서_빠진다() throws Exception {
+    void 넘긴_안건은_다음_회의에서_불러오면_목록에서_빠지고_다시_불러올_수_없다() throws Exception {
         Long first = createMeeting(folderId, owner, writer, writer);
         call(writer, post("/api/meetings/" + first + "/start"), null);
         Long agendaId = id(call(writer, get("/api/meetings/" + first), null), "$.data.agendas[0].agendaId");
@@ -90,9 +90,9 @@ class MeetingProgressTest extends ApiTestSupport {
         Long second = id(call(owner, post("/api/folders/" + folderId + "/meetings"),
                 meetingJson("두 번째", "2026-10-27T14:00:00", "2026-10-27T15:00:00", writer, List.of(writer), loadPending))
                 .andExpect(status().isCreated()), "$.data.meetingId");
+        // REQ-052. 다음 회의에 불러오면 남은 안건 목록에서 빠진다
         call(owner, get("/api/folders/" + folderId + "/pending-agendas"), null)
-                .andExpect(jsonPath("$.data[0].status").value("IN_PROGRESS"))
-                .andExpect(jsonPath("$.data[0].takenMeetingId").value(second));
+                .andExpect(jsonPath("$.data.length()").value(0));
         call(owner, post("/api/folders/" + folderId + "/meetings"),
                 meetingJson("세 번째", "2026-10-28T14:00:00", "2026-10-28T15:00:00", owner, List.of(), loadPending))
                 .andExpect(status().isConflict())

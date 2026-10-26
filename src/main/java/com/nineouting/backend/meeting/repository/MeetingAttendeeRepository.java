@@ -11,6 +11,8 @@ public interface MeetingAttendeeRepository extends JpaRepository<MeetingAttendee
 
     List<MeetingAttendee> findByMeetingIdOrderById(Long meetingId);
 
+    List<MeetingAttendee> findByMeetingIdInOrderById(Collection<Long> meetingIds);
+
     boolean existsByMeetingIdAndUserId(Long meetingId, Long userId);
 
     @Modifying

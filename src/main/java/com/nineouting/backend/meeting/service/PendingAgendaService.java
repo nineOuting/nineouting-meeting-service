@@ -20,14 +20,14 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class PendingAgendaService {
 
-    private static final List<PendingAgendaStatus> VISIBLE =
-            List.of(PendingAgendaStatus.WAITING, PendingAgendaStatus.IN_PROGRESS);
+    /** REQ-052. 다음 회의에 불러온(진행 중) 안건은 목록에서 빠진다. 그 회의가 취소되거나 다시 넘기면 대기로 돌아와 다시 보인다 */
+    private static final List<PendingAgendaStatus> VISIBLE = List.of(PendingAgendaStatus.WAITING);
 
     private final PendingAgendaRepository pendingAgendaRepository;
     private final MeetingRepository meetingRepository;
     private final MeetingAccess access;
 
-    /** 대기·진행 중인 안건, 최근에 넘긴 순 */
+    /** 대기 중인 안건, 최근에 넘긴 순 */
     @Transactional(readOnly = true)
     public List<PendingAgendaResponse> list(Long folderId, Long userId) {
         access.requireFolderAccess(folderId, userId);

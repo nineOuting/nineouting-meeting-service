@@ -138,6 +138,6 @@ public class MeetingProgressService {
         events.publishEvent(RoomEvent.closeAfter(meetingId, RoomMessage.finished()));
         outboxEventWriter.append(MeetingFinished.TOPIC, meetingId.toString(), MeetingFinished.TYPE,
                 new MeetingFinished(meetingId, meeting.getWorkspaceId(), meeting.getFolderId(), meeting.getTitle(),
-                        meeting.getStartAt(), meeting.getWriterUserId(), attendees));
+                        meeting.getStartAt(), meeting.getLocation(), meeting.getWriterUserId(), attendees));
     }
 }

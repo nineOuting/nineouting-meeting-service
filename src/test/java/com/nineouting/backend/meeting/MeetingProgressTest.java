@@ -64,7 +64,8 @@ class MeetingProgressTest extends ApiTestSupport {
                 .andExpect(jsonPath("$.data.agendas[*].title", contains("안건1", "추가")));
         assertThat(outboxContains(MeetingFinished.TYPE, "\"meetingId\":%d,".formatted(meetingId))).isTrue();
         assertThat(outboxContains(MeetingFinished.TYPE,
-                "\"writerUserId\":%d,\"attendeeUserIds\":[%d,%d]".formatted(writer, owner, writer))).isTrue();
+                "\"location\":\"3층 회의실\",\"writerUserId\":%d,\"attendeeUserIds\":[%d,%d]".formatted(writer, owner, writer)))
+                .isTrue();
     }
 
     @Test

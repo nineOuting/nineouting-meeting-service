@@ -35,16 +35,22 @@ class MeetingProgressTest extends ApiTestSupport {
 
         call(owner, post("/api/meetings/" + meetingId + "/start"), null)
                 .andExpect(jsonPath("$.code").value("NOT_MEETING_WRITER"));
-        call(writer, post("/api/meetings/" + meetingId + "/agendas"), "{\"title\":\"추가\",\"decisionPoint\":\"결정\"}")
+        call(writer, post("/api/meetings/" + meetingId + "/agendas"), "{\"title\":\"추가\",\"decisionPoints\":[\"결정\"]}")
                 .andExpect(jsonPath("$.code").value("MEETING_NOT_IN_PROGRESS"));
         call(writer, post("/api/meetings/" + meetingId + "/start"), null).andExpect(status().isOk());
         call(writer, post("/api/meetings/" + meetingId + "/start"), null)
                 .andExpect(jsonPath("$.code").value("MEETING_ALREADY_STARTED"));
 
-        call(owner, post("/api/meetings/" + meetingId + "/agendas"), "{\"title\":\"추가\",\"decisionPoint\":\"결정\"}")
+        call(owner, post("/api/meetings/" + meetingId + "/agendas"), "{\"title\":\"추가\",\"decisionPoints\":[\"결정\"]}")
                 .andExpect(jsonPath("$.code").value("NOT_MEETING_WRITER"));
-        call(writer, post("/api/meetings/" + meetingId + "/agendas"), "{\"title\":\"추가\",\"decisionPoint\":\"결정\"}")
+        // 회의 중 안건 추가도 결정할 사항이 1개 이상 있어야 한다
+        call(writer, post("/api/meetings/" + meetingId + "/agendas"), "{\"title\":\"추가\",\"decisionPoints\":[]}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.data[0].field").value("decisionPoints"));
+        call(writer, post("/api/meetings/" + meetingId + "/agendas"),
+                "{\"title\":\"추가\",\"decisionPoints\":[\"결정\",\"담당\"]}")
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.decisionPoints[*].text", contains("결정", "담당")))
                 .andExpect(jsonPath("$.data.position").value(1))
                 .andExpect(jsonPath("$.data.addedDuringMeeting").value(true));
 
@@ -58,11 +64,12 @@ class MeetingProgressTest extends ApiTestSupport {
                 .andExpect(jsonPath("$.data.agendas[*].title", contains("안건1", "추가")));
         assertThat(outboxContains(MeetingFinished.TYPE, "\"meetingId\":%d,".formatted(meetingId))).isTrue();
         assertThat(outboxContains(MeetingFinished.TYPE,
-                "\"writerUserId\":%d,\"attendeeUserIds\":[%d,%d]".formatted(writer, owner, writer))).isTrue();
+                "\"location\":\"3층 회의실\",\"writerUserId\":%d,\"attendeeUserIds\":[%d,%d]".formatted(writer, owner, writer)))
+                .isTrue();
     }
 
     @Test
-    void 넘긴_안건은_다음_회의에서_불러오면_진행_중이_되고_마무리하면_목록에서_빠진다() throws Exception {
+    void 넘긴_안건은_다음_회의에서_불러오면_목록에서_빠지고_다시_불러올_수_없다() throws Exception {
         Long first = createMeeting(folderId, owner, writer, writer);
         call(writer, post("/api/meetings/" + first + "/start"), null);
         Long agendaId = id(call(writer, get("/api/meetings/" + first), null), "$.data.agendas[0].agendaId");
@@ -75,17 +82,18 @@ class MeetingProgressTest extends ApiTestSupport {
         Long pendingId = id(call(folderMember, get("/api/folders/" + folderId + "/pending-agendas"), null)
                 .andExpect(jsonPath("$.data.length()").value(1))
                 .andExpect(jsonPath("$.data[0].title").value("안건1"))
+                .andExpect(jsonPath("$.data[0].decisionPoints", contains("결정1")))
                 .andExpect(jsonPath("$.data[0].status").value("WAITING"))
                 .andExpect(jsonPath("$.data[0].fromMeetingTitle").value("회의"))
                 .andExpect(jsonPath("$.data[0].carriedAt").isNotEmpty()), "$.data[0].pendingAgendaId");
 
-        String loadPending = "{\"title\":\"안건1\",\"decisionPoint\":\"결정1\",\"pendingAgendaId\":%d}".formatted(pendingId);
+        String loadPending = "{\"title\":\"안건1\",\"decisionPoints\":[\"결정1\"],\"pendingAgendaId\":%d}".formatted(pendingId);
         Long second = id(call(owner, post("/api/folders/" + folderId + "/meetings"),
                 meetingJson("두 번째", "2026-10-27T14:00:00", "2026-10-27T15:00:00", writer, List.of(writer), loadPending))
                 .andExpect(status().isCreated()), "$.data.meetingId");
+        // REQ-052. 다음 회의에 불러오면 남은 안건 목록에서 빠진다
         call(owner, get("/api/folders/" + folderId + "/pending-agendas"), null)
-                .andExpect(jsonPath("$.data[0].status").value("IN_PROGRESS"))
-                .andExpect(jsonPath("$.data[0].takenMeetingId").value(second));
+                .andExpect(jsonPath("$.data.length()").value(0));
         call(owner, post("/api/folders/" + folderId + "/meetings"),
                 meetingJson("세 번째", "2026-10-28T14:00:00", "2026-10-28T15:00:00", owner, List.of(), loadPending))
                 .andExpect(status().isConflict())
@@ -100,7 +108,7 @@ class MeetingProgressTest extends ApiTestSupport {
     @Test
     void 불러온_안건을_다시_넘기면_같은_줄이_대기로_돌아간다() throws Exception {
         Long pendingId = carriedPendingAgenda();
-        String loadPending = "{\"title\":\"안건1\",\"decisionPoint\":\"결정1\",\"pendingAgendaId\":%d}".formatted(pendingId);
+        String loadPending = "{\"title\":\"안건1\",\"decisionPoints\":[\"결정1\"],\"pendingAgendaId\":%d}".formatted(pendingId);
         Long second = id(call(owner, post("/api/folders/" + folderId + "/meetings"),
                 meetingJson("두 번째", "2026-10-27T14:00:00", "2026-10-27T15:00:00", writer, List.of(writer), loadPending)),
                 "$.data.meetingId");
@@ -120,8 +128,8 @@ class MeetingProgressTest extends ApiTestSupport {
     @Test
     void 회의를_취소하거나_수정에서_안건을_빼면_불러온_안건이_대기로_돌아간다() throws Exception {
         Long pendingId = carriedPendingAgenda();
-        String loadPending = "{\"title\":\"안건1\",\"decisionPoint\":\"결정1\",\"pendingAgendaId\":%d}".formatted(pendingId);
-        String otherAgenda = "{\"title\":\"다른 안건\",\"decisionPoint\":\"결정\"}";
+        String loadPending = "{\"title\":\"안건1\",\"decisionPoints\":[\"결정1\"],\"pendingAgendaId\":%d}".formatted(pendingId);
+        String otherAgenda = "{\"title\":\"다른 안건\",\"decisionPoints\":[\"결정\"]}";
 
         Long edited = id(call(owner, post("/api/folders/" + folderId + "/meetings"),
                 meetingJson("수정할 회의", "2026-10-27T14:00:00", "2026-10-27T15:00:00", owner, List.of(), loadPending)),

@@ -38,8 +38,8 @@ class MeetingFlowTest extends ApiTestSupport {
     @Test
     void 회의를_만들면_만든_사람도_참석자가_되고_참석자에게_알림_이벤트가_간다() throws Exception {
         String body = meetingJson("주간 회의", "2026-10-20T14:00:00", "2026-10-20T15:00:00", member, List.of(member),
-                "{\"title\":\"배포 일정\",\"decisionPoint\":\"배포 날짜 확정\"}",
-                "{\"title\":\"예산\",\"decisionPoint\":\"예산 승인\"}");
+                "{\"title\":\"배포 일정\",\"decisionPoints\":[\"배포 날짜 확정\"]}",
+                "{\"title\":\"예산\",\"decisionPoints\":[\"예산 승인\",\"  담당자 지정 \"]}");
 
         Long meetingId = id(call(owner, post("/api/folders/" + folderId + "/meetings"), body)
                 .andExpect(status().isCreated())
@@ -53,7 +53,9 @@ class MeetingFlowTest extends ApiTestSupport {
         call(member, get("/api/meetings/" + meetingId), null)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.location").value("3층 회의실"))
-                .andExpect(jsonPath("$.data.agendas[1].decisionPoint").value("예산 승인"));
+                .andExpect(jsonPath("$.data.agendas[1].decisionPoints[*].text", contains("예산 승인", "담당자 지정")))
+                .andExpect(jsonPath("$.data.agendas[1].decisionPoints[*].position", contains(0, 1)))
+                .andExpect(jsonPath("$.data.agendas[1].decisionPoints[0].decisionPointId").isNumber());
         call(outsider, get("/api/meetings/" + meetingId), null)
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FOLDER_ACCESS_DENIED"));
@@ -64,20 +66,39 @@ class MeetingFlowTest extends ApiTestSupport {
     void 필수_항목이_비면_칸별로_안내한다() throws Exception {
         String body = """
                 {"title":" ","startAt":null,"endAt":"2026-10-20T15:00:00","writerUserId":%d,
-                 "agendas":[{"title":"안건","decisionPoint":""}]}""".formatted(owner);
+                 "agendas":[{"title":"안건","decisionPoints":[""]}]}""".formatted(owner);
 
         call(owner, post("/api/folders/" + folderId + "/meetings"), body)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
-                .andExpect(jsonPath("$.data[*].field", containsInAnyOrder("title", "startAt", "agendas[0].decisionPoint")));
+                .andExpect(jsonPath("$.data[*].field", containsInAnyOrder("title", "startAt", "agendas[0].decisionPoints[0]")));
         call(owner, post("/api/folders/" + folderId + "/meetings"),
                 meetingJson("회의", "2026-10-20T14:00:00", "2026-10-20T15:00:00", owner, List.of()))
                 .andExpect(jsonPath("$.data[0].field").value("agendas"));
     }
 
     @Test
+    void 결정할_사항은_안건마다_1개에서_5개까지_칸당_200자까지다() throws Exception {
+        String none = "{\"title\":\"안건\",\"decisionPoints\":[]}";
+        String six = "{\"title\":\"안건\",\"decisionPoints\":[\"1\",\"2\",\"3\",\"4\",\"5\",\"6\"]}";
+        String tooLong = "{\"title\":\"안건\",\"decisionPoints\":[\"%s\"]}".formatted("가".repeat(201));
+        for (String agenda : List.of(none, six, tooLong)) {
+            call(owner, post("/api/folders/" + folderId + "/meetings"),
+                    meetingJson("회의", "2026-10-20T14:00:00", "2026-10-20T15:00:00", owner, List.of(), agenda))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+        }
+        String five = "{\"title\":\"안건\",\"decisionPoints\":[\"1\",\"2\",\"3\",\"4\",\"%s\"]}"
+                .formatted("가".repeat(200));
+        call(owner, post("/api/folders/" + folderId + "/meetings"),
+                meetingJson("회의", "2026-10-20T14:00:00", "2026-10-20T15:00:00", owner, List.of(), five))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.agendas[0].decisionPoints.length()").value(5));
+    }
+
+    @Test
     void 시간_참석자_회의록_작성자를_확인한다() throws Exception {
-        String agenda = "{\"title\":\"안건\",\"decisionPoint\":\"결정\"}";
+        String agenda = "{\"title\":\"안건\",\"decisionPoints\":[\"결정\"]}";
         String url = "/api/folders/" + folderId + "/meetings";
 
         call(owner, post(url), meetingJson("회의", "2026-10-20T15:00:00", "2026-10-20T14:00:00", owner, List.of(), agenda))
@@ -99,7 +120,7 @@ class MeetingFlowTest extends ApiTestSupport {
         Long folder = folder(workspaceId, "개발", owner, member, third);
         Long meetingId = createMeeting(folder, owner, owner, member);
         String changed = meetingJson("바뀐 회의", "2026-10-21T10:00:00", "2026-10-21T11:00:00", third, List.of(third),
-                "{\"title\":\"새 안건\",\"decisionPoint\":\"새 결정\"}");
+                "{\"title\":\"새 안건\",\"decisionPoints\":[\"새 결정\"]}");
 
         call(third, put("/api/meetings/" + meetingId), changed)
                 .andExpect(jsonPath("$.code").value("NOT_MEETING_ATTENDEE"));
@@ -138,7 +159,7 @@ class MeetingFlowTest extends ApiTestSupport {
 
     @Test
     void 폴더_내_회의는_시작_시각_최신순으로_나눠_받는다() throws Exception {
-        String agenda = "{\"title\":\"안건\",\"decisionPoint\":\"결정\"}";
+        String agenda = "{\"title\":\"안건\",\"decisionPoints\":[\"결정\"]}";
         for (String day : List.of("2026-10-05", "2026-10-25", "2026-10-15")) {
             call(owner, post("/api/folders/" + folderId + "/meetings"),
                     meetingJson(day, day + "T10:00:00", day + "T11:00:00", owner, List.of(), agenda))
@@ -147,6 +168,9 @@ class MeetingFlowTest extends ApiTestSupport {
 
         call(member, get("/api/folders/" + folderId + "/meetings").param("size", "2"), null)
                 .andExpect(jsonPath("$.data.items[*].title", contains("2026-10-25", "2026-10-15")))
+                .andExpect(jsonPath("$.data.items[0].writer.userId").value(owner))
+                .andExpect(jsonPath("$.data.items[0].writer.name").value("user" + owner))
+                .andExpect(jsonPath("$.data.items[0].attendees[*].userId", contains(owner.intValue())))
                 .andExpect(jsonPath("$.data.totalCount").value(3))
                 .andExpect(jsonPath("$.data.hasNext").value(true));
         call(member, get("/api/folders/" + folderId + "/meetings").param("size", "2").param("page", "1"), null)
@@ -160,7 +184,7 @@ class MeetingFlowTest extends ApiTestSupport {
         Long otherWorkspace = newId();
         Long otherFolder = folder(otherWorkspace, "다른 팀", member);
         Long hiddenFolder = folder(workspaceId, "비공개", owner);
-        String agenda = "{\"title\":\"안건\",\"decisionPoint\":\"결정\"}";
+        String agenda = "{\"title\":\"안건\",\"decisionPoints\":[\"결정\"]}";
         call(owner, post("/api/folders/" + folderId + "/meetings"),
                 meetingJson("기획 회의", "2026-11-03T10:00:00", "2026-11-03T11:00:00", owner, List.of(), agenda));
         call(member, post("/api/folders/" + otherFolder + "/meetings"),

@@ -71,7 +71,7 @@ public class MeetingService {
     private final OutboxEventWriter outboxEventWriter;
     private final Clock clock;
 
-    /** REQ-049, 059~063, 065~066, 068~071. 만든 사람은 참석자로 자동으로 들어간다. */
+    /** REQ-049(레거시), 059~063, 065~066, 068~071. 만든 사람은 참석자로 자동으로 들어간다. */
     @Transactional
     public MeetingDetailResponse create(Long folderId, Long userId, MeetingRequest request) {
         FolderAccess folder = access.requireFolderAccess(folderId, userId);
@@ -101,15 +101,30 @@ public class MeetingService {
         return detail(access.requireViewable(meetingId, userId));
     }
 
-    /** REQ-048. 시작 시각 최신순, 취소된 회의는 숨긴다. */
+    /** REQ-048. 시작 시각 최신순, 취소된 회의는 숨긴다. 작성자·참여자 이름은 한 페이지에 한 번 묻는다 */
     @Transactional(readOnly = true)
     public MeetingPageResponse list(Long folderId, Long userId, int page, int size) {
         access.requireFolderAccess(folderId, userId);
         PageRequest pageable = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, MAX_PAGE_SIZE),
                 Sort.by(Sort.Order.desc("startAt"), Sort.Order.desc("id")));
         Page<Meeting> result = meetingRepository.findByFolderIdAndStatusNot(folderId, MeetingStatus.CANCELLED, pageable);
-        return new MeetingPageResponse(result.map(MeetingSummaryResponse::from).getContent(), result.getNumber(),
-                result.getSize(), result.getTotalElements(), result.hasNext());
+        List<Meeting> meetings = result.getContent();
+        Map<Long, List<Long>> attendees = attendeeRepository.findByMeetingIdInOrderById(
+                        meetings.stream().map(Meeting::getId).toList()).stream()
+                .collect(Collectors.groupingBy(MeetingAttendee::getMeetingId,
+                        Collectors.mapping(MeetingAttendee::getUserId, Collectors.toList())));
+        Set<Long> userIds = new HashSet<>();
+        meetings.forEach(meeting -> userIds.add(meeting.getWriterUserId()));
+        attendees.values().forEach(userIds::addAll);
+        Map<Long, UserSummary> users = userClient.findUsers(userIds);
+        List<MeetingSummaryResponse> items = meetings.stream()
+                .map(meeting -> MeetingSummaryResponse.of(meeting,
+                        PersonResponse.of(meeting.getWriterUserId(), users.get(meeting.getWriterUserId())),
+                        attendees.getOrDefault(meeting.getId(), List.of()).stream()
+                                .map(id -> PersonResponse.of(id, users.get(id))).toList()))
+                .toList();
+        return new MeetingPageResponse(items, result.getNumber(), result.getSize(), result.getTotalElements(),
+                result.hasNext());
     }
 
     /** REQ-064. 참석자 모두, 시작 전에만. 새로 추가된 사람·빠진 사람을 이벤트에 담는다. */
@@ -161,7 +176,7 @@ public class MeetingService {
                         meeting.getStartAt(), meeting.getOwnerUserId(), List.copyOf(attendeeIds(meetingId))));
     }
 
-    /** REQ-045. 만든 사람만, 상태와 상관없이. 같은 워크스페이스에서 들어갈 수 있는 폴더로만 옮긴다. */
+    /** REQ-045 (레거시). 만든 사람만, 상태와 상관없이. 같은 워크스페이스에서 들어갈 수 있는 폴더로만 옮긴다. */
     @Transactional
     public void move(Long meetingId, Long userId, Long folderId) {
         Meeting meeting = access.requireOwner(meetingId, userId);
@@ -259,7 +274,7 @@ public class MeetingService {
                 }
                 pending.takeBy(meeting.getId());
             }
-            agendaRepository.save(new Agenda(meeting.getId(), position, agenda.title(), agenda.decisionPoint(),
+            agendaRepository.save(new Agenda(meeting.getId(), position, agenda.title(), agenda.decisionPoints(),
                     pendingId, false));
         }
     }

@@ -31,7 +31,7 @@ public class MeetingController {
 
     private final MeetingService meetingService;
 
-    /** REQ-049, 059~063, 065~071 */
+    /** REQ-049(레거시), 059~063, 065~071 */
     @PostMapping("/api/folders/{folderId}/meetings")
     public ResponseEntity<ApiResponse<MeetingDetailResponse>> create(@CurrentUser AuthenticatedUser user,
                                                                      @PathVariable Long folderId,
@@ -75,7 +75,7 @@ public class MeetingController {
         return ApiResponse.ok();
     }
 
-    /** REQ-045 */
+    /** REQ-045 (레거시) */
     @PutMapping("/api/meetings/{meetingId}/folder")
     public ApiResponse<Void> move(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId,
                                   @Valid @RequestBody MoveFolderRequest request) {

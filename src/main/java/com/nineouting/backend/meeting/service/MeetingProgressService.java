@@ -88,7 +88,7 @@ public class MeetingProgressService {
         access.requireWriterInProgress(meetingId, userId);
         List<Agenda> agendas = agendaRepository.findByMeetingIdOrderByPosition(meetingId);
         int position = agendas.isEmpty() ? 0 : agendas.getLast().getPosition() + 1;
-        Agenda agenda = agendaRepository.save(new Agenda(meetingId, position, request.title(), request.decisionPoint(),
+        Agenda agenda = agendaRepository.save(new Agenda(meetingId, position, request.title(), request.decisionPoints(),
                 null, true));
         return AgendaResponse.from(agenda);
     }
@@ -110,7 +110,7 @@ public class MeetingProgressService {
             }
             if (agenda.getPendingAgendaId() == null) {
                 PendingAgenda pending = pendingAgendaRepository.save(new PendingAgenda(meeting.getWorkspaceId(),
-                        meeting.getFolderId(), agenda.getTitle(), agenda.getDecisionPoint(), meetingId, now));
+                        meeting.getFolderId(), agenda.getTitle(), agenda.decisionPointContents(), meetingId, now));
                 agenda.linkPendingAgenda(pending.getId());
                 continue;
             }
@@ -138,6 +138,6 @@ public class MeetingProgressService {
         events.publishEvent(RoomEvent.closeAfter(meetingId, RoomMessage.finished()));
         outboxEventWriter.append(MeetingFinished.TOPIC, meetingId.toString(), MeetingFinished.TYPE,
                 new MeetingFinished(meetingId, meeting.getWorkspaceId(), meeting.getFolderId(), meeting.getTitle(),
-                        meeting.getStartAt(), meeting.getWriterUserId(), attendees));
+                        meeting.getStartAt(), meeting.getLocation(), meeting.getWriterUserId(), attendees));
     }
 }

@@ -13,7 +13,7 @@ import java.util.List;
  *
  * @param attendeeUserIds   참석자. 만든 사람은 없어도 들어간다
  * @param agendas           배열 순서 = 안건 순서 (REQ-069)
- * @param previousMeetingId 이어서 만들기(REQ-049)의 이전 회의. 생성할 때만 쓴다
+ * @param previousMeetingId 이어서 만들기(REQ-049, 레거시)의 이전 회의. 생성할 때만 쓴다
  */
 public record MeetingRequest(
         @NotBlank(message = "회의명을 입력해 주세요")

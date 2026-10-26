@@ -2,6 +2,7 @@ package com.nineouting.backend.meeting.dto;
 
 import com.nineouting.backend.meeting.domain.PendingAgendaStatus;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 폴더의 남은 안건 (REQ-051~052).
@@ -13,7 +14,7 @@ import java.time.LocalDateTime;
 public record PendingAgendaResponse(
         Long pendingAgendaId,
         String title,
-        String decisionPoint,
+        List<String> decisionPoints,
         PendingAgendaStatus status,
         Long fromMeetingId,
         String fromMeetingTitle,

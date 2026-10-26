@@ -3,6 +3,7 @@ package com.nineouting.backend.meeting.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /** 남은 안건 상태 (REQ-051~052, 094): 대기 → 진행 중 → 처리됨 (DB 없이) */
@@ -70,6 +71,6 @@ class PendingAgendaTest {
     }
 
     private static PendingAgenda pending() {
-        return new PendingAgenda(3L, 4L, "배포 일정", "배포 날짜 확정", 31L, CARRIED);
+        return new PendingAgenda(3L, 4L, "배포 일정", List.of("배포 날짜 확정"), 31L, CARRIED);
     }
 }

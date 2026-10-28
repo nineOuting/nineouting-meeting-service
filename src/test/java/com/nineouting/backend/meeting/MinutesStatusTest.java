@@ -14,16 +14,15 @@ import java.util.List;
 import java.util.Objects;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.core.KafkaTemplate;
 import tools.jackson.databind.json.JsonMapper;
 
-/** 실제 Kafka 토픽에 회의록 이벤트를 넣고 회의 목록에 "검토 중·확정"이 보이는지 확인한다 (REQ-048) */
+/** 실제 SNS 토픽에 회의록 이벤트를 넣고 회의 목록에 "검토 중·확정"이 보이는지 확인한다 (REQ-048) */
 class MinutesStatusTest extends ApiTestSupport {
 
     private static final Duration WAIT = Duration.ofSeconds(20);
 
     @Autowired
-    KafkaTemplate<String, String> kafkaTemplate;
+    LocalMessaging messaging;
 
     @Autowired
     JsonMapper jsonMapper;
@@ -48,7 +47,7 @@ class MinutesStatusTest extends ApiTestSupport {
     }
 
     private void publish(String topic, String type, Object payload) throws Exception {
-        kafkaTemplate.send(topic, jsonMapper.writeValueAsString(EventEnvelope.of(type, "test", null, payload))).get();
+        messaging.publish(topic, null, jsonMapper.writeValueAsString(EventEnvelope.of(type, "test", null, payload)));
     }
 
     private void awaitMinutesStatus(Long userId, Long meetingId, String expected) throws Exception {

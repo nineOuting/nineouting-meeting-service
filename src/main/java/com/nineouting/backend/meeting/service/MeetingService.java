@@ -116,7 +116,9 @@ public class MeetingService {
         Set<Long> userIds = new HashSet<>();
         meetings.forEach(meeting -> userIds.add(meeting.getWriterUserId()));
         attendees.values().forEach(userIds::addAll);
-        Map<Long, UserSummary> users = userClient.findUsers(userIds);
+        // 워크스페이스 프로필로 보여 준다 (REQ-114·115·118). 한 폴더의 회의라 워크스페이스가 같다
+        Map<Long, UserSummary> users = meetings.isEmpty() ? Map.of()
+                : userClient.findUsers(userIds, meetings.getFirst().getWorkspaceId());
         List<MeetingSummaryResponse> items = meetings.stream()
                 .map(meeting -> MeetingSummaryResponse.of(meeting,
                         PersonResponse.of(meeting.getWriterUserId(), users.get(meeting.getWriterUserId())),
@@ -224,7 +226,7 @@ public class MeetingService {
         Set<Long> userIds = new LinkedHashSet<>(attendees);
         userIds.add(meeting.getOwnerUserId());
         userIds.add(meeting.getWriterUserId());
-        Map<Long, UserSummary> users = userClient.findUsers(userIds);
+        Map<Long, UserSummary> users = userClient.findUsers(userIds, meeting.getWorkspaceId());
         return new MeetingDetailResponse(
                 meeting.getId(), meeting.getWorkspaceId(), meeting.getFolderId(), meeting.getTitle(),
                 meeting.getStartAt(), meeting.getEndAt(), meeting.getLocation(), meeting.getStatus(),

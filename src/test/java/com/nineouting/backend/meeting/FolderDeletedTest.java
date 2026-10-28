@@ -12,16 +12,15 @@ import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.core.KafkaTemplate;
 import tools.jackson.databind.json.JsonMapper;
 
-/** 실제 Kafka 토픽에 FolderDeleted를 넣고 inbox → 처리기 → 삭제까지 확인한다 (REQ-058) */
+/** 실제 SNS 토픽에 FolderDeleted를 넣고 inbox → 처리기 → 삭제까지 확인한다 (REQ-058) */
 class FolderDeletedTest extends ApiTestSupport {
 
     private static final Duration WAIT = Duration.ofSeconds(20);
 
     @Autowired
-    KafkaTemplate<String, String> kafkaTemplate;
+    LocalMessaging messaging;
 
     @Autowired
     JsonMapper jsonMapper;
@@ -38,8 +37,8 @@ class FolderDeletedTest extends ApiTestSupport {
         Long agendaId = id(call(user, get("/api/meetings/" + deletedMeeting), null), "$.data.agendas[0].agendaId");
         call(user, post("/api/meetings/" + deletedMeeting + "/carry-over"), "{\"agendaIds\":[%d]}".formatted(agendaId));
 
-        kafkaTemplate.send(FolderDeleted.TOPIC, jsonMapper.writeValueAsString(EventEnvelope.of(FolderDeleted.TYPE,
-                "test", null, new FolderDeleted(workspaceId, List.of(deleted))))).get();
+        messaging.publish(FolderDeleted.TOPIC, null, jsonMapper.writeValueAsString(EventEnvelope.of(FolderDeleted.TYPE,
+                "test", null, new FolderDeleted(workspaceId, List.of(deleted)))));
 
         await(deletedMeeting, user);
         call(user, get("/api/folders/" + deleted + "/pending-agendas"), null)

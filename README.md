@@ -13,7 +13,7 @@
 필요한 것: JDK 21, Docker, 실행 중인 user-service(8081)·workspace-service(8082)
 
 1. `~/.gradle/gradle.properties`에 `gpr.user`, `gpr.key`(read:packages 토큰)
-2. `docker compose up -d` — PostgreSQL(`localhost:5436`), Kafka(`localhost:9092`), Redis(`localhost:6379`)
+2. `docker compose up -d` — PostgreSQL(`localhost:5436`), LocalStack SNS·SQS(`localhost:4566`, 토픽·큐는 `docker/localstack/init-sns-sqs.sh`), Redis(`localhost:6379`)
 3. `./gradlew bootRun --args='--spring.profiles.active=local'`
 
 ## API
@@ -67,7 +67,7 @@ ai-service로는 회의 알림을 바로, 줄 묶음을 10초마다 밀어 준�
 ## 테스트
 
 ```bash
-./gradlew test   # Testcontainers로 PostgreSQL·Kafka를 띄운다. user·workspace·ai-service는 가짜로 바꾼다
+./gradlew test   # Testcontainers로 PostgreSQL·LocalStack(SNS·SQS)을 띄운다. user·workspace·ai-service는 가짜로 바꾼다
 ```
 
 ## 환경 변수
@@ -77,7 +77,10 @@ ai-service로는 회의 알림을 바로, 줄 묶음을 10초마다 밀어 준�
 | `SERVER_PORT` | `8083` | |
 | `DB_URL` | `jdbc:postgresql://localhost:5436/meeting_db` | |
 | `DB_USERNAME` / `DB_PASSWORD` | `meeting_service` | |
-| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` | |
+| `SNS_TOPIC_PREFIX` | `arn:aws:sns:ap-northeast-2:000000000000:nineouting-local-` | 회의 생성·변경·취소·마무리·이동 이벤트를 보낼 SNS 토픽 ARN 앞부분 (뒤에 이벤트 이름이 붙는다) |
+| `SQS_QUEUE_URL` | `http://localhost:4566/000000000000/nineouting-local-meeting-service.fifo` | 이 서비스가 이벤트를 받는 큐 |
+| `AWS_ENDPOINT_URL` | — | 비우면 AWS. LocalStack이면 `http://localhost:4566` (`local` 프로필은 자동) |
+| `MESSAGING_ACCESS_KEY` / `MESSAGING_SECRET_KEY` | — | 비우면 AWS 기본 자격 증명(EKS는 IRSA). LocalStack은 `test` (`local` 프로필은 자동) |
 | `JWT_JWKS_URI` | `http://localhost:8081/.well-known/jwks.json` | access 토큰 검증 공개키 |
 | `USER_SERVICE_URL` | `http://localhost:8081` | 참석자 이름 조회 |
 | `WORKSPACE_SERVICE_URL` | `http://localhost:8082` | 폴더 권한·멤버·목록 조회 |

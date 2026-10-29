@@ -3,10 +3,13 @@ package com.nineouting.backend.meeting.handler;
 import com.nineouting.backend.common.event.workspace.FolderDeleted;
 import com.nineouting.backend.common.inbox.InboxHandler;
 import com.nineouting.backend.common.inbox.InboxMessage;
+import com.nineouting.backend.meeting.repository.AgendaEditRepository;
 import com.nineouting.backend.meeting.repository.AgendaRepository;
+import com.nineouting.backend.meeting.repository.AgendaStateRepository;
 import com.nineouting.backend.meeting.repository.AiBatchRepository;
 import com.nineouting.backend.meeting.repository.AiFeedRepository;
 import com.nineouting.backend.meeting.repository.ConnectionTicketRepository;
+import com.nineouting.backend.meeting.repository.LineAgendaRepository;
 import com.nineouting.backend.meeting.repository.LiveSummaryRepository;
 import com.nineouting.backend.meeting.repository.MeetingAttendeeRepository;
 import com.nineouting.backend.meeting.repository.MeetingRepository;
@@ -27,6 +30,9 @@ import tools.jackson.databind.json.JsonMapper;
 @RequiredArgsConstructor
 public class FolderDeletedHandler implements InboxHandler {
 
+    private final AgendaStateRepository agendaStateRepository;
+    private final LineAgendaRepository lineAgendaRepository;
+    private final AgendaEditRepository agendaEditRepository;
     private final JsonMapper jsonMapper;
     private final MeetingRepository meetingRepository;
     private final MeetingAttendeeRepository attendeeRepository;
@@ -58,6 +64,9 @@ public class FolderDeletedHandler implements InboxHandler {
             connectionTicketRepository.deleteByMeetingIdIn(meetingIds);
             aiFeedRepository.deleteByMeetingIdIn(meetingIds);
             aiBatchRepository.deleteByMeetingIdIn(meetingIds);
+            agendaStateRepository.deleteByMeetingIdIn(meetingIds);
+            lineAgendaRepository.deleteByMeetingIdIn(meetingIds);
+            agendaEditRepository.deleteByMeetingIdIn(meetingIds);
             liveSummaryRepository.deleteByMeetingIdIn(meetingIds);
             attendeeRepository.deleteByMeetingIdIn(meetingIds);
             meetingRepository.deleteAllByIdIn(meetingIds);

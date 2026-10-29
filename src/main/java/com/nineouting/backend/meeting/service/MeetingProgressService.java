@@ -40,6 +40,7 @@ public class MeetingProgressService {
 
     private final AgendaRepository agendaRepository;
     private final AiFeedRepository aiFeedRepository;
+    private final AgendaBoardService agendaBoardService;
     private final PendingAgendaRepository pendingAgendaRepository;
     private final MeetingAttendeeRepository attendeeRepository;
     private final MeetingAccess access;
@@ -56,8 +57,9 @@ public class MeetingProgressService {
         }
         LocalDateTime now = LocalDateTime.now(clock);
         meeting.start(now);
-        // 회의 알림·전사 줄을 ai-service로 밀어 주기 시작한다 (AiFeedJob)
+        // 회의 알림·전사 줄을 ai-service로 밀어 주기 시작한다 (AiFeedJob). 안건 목록을 먼저 보낸다 (안건 보드)
         aiFeedRepository.save(new AiFeed(meetingId, now));
+        agendaBoardService.agendasChanged(meetingId);
     }
 
     /** REQ-084. 회의록 작성자, 진행 중. 녹음·경과 시간이 멈춘다 (음성은 브라우저가 STT에 멈춤을 보낸다) */
@@ -90,6 +92,8 @@ public class MeetingProgressService {
         int position = agendas.isEmpty() ? 0 : agendas.getLast().getPosition() + 1;
         Agenda agenda = agendaRepository.save(new Agenda(meetingId, position, request.title(), request.decisionPoints(),
                 null, true));
+        // 새 안건 제안을 받아들여 등록한 것도 이것으로 알린다 (ai-service가 떠 있던 제안을 거둔다, REQ-091)
+        agendaBoardService.agendasChanged(meetingId);
         return AgendaResponse.from(agenda);
     }
 

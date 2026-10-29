@@ -73,6 +73,11 @@ public class Agenda {
         return decisionPoints.stream().map(AgendaDecisionPoint::getContent).toList();
     }
 
+    /** ai-service 안건 보드가 판정한 상태 */
+    public void changeStatus(AgendaStatus status) {
+        this.status = status;
+    }
+
     public void linkPendingAgenda(Long pendingAgendaId) {
         this.pendingAgendaId = pendingAgendaId;
     }

@@ -158,12 +158,13 @@ public class AgendaBoardService {
     @Transactional
     public LineAgendaResponse correctLine(Long meetingId, Long userId, int seq, Long agendaId) {
         access.requireWriterInProgress(meetingId, userId);
+        // AiFeedJob과 같은 순서(안건 상태 → 전사 줄)로 잠근다. 반대로 잡으면 줄 묶음을 보내는 중에 교착 상태가 된다
+        AgendaState state = lockOrCreate(meetingId);
         transcriptLineRepository.findForUpdate(meetingId, seq)
                 .orElseThrow(() -> new BusinessException(CommonErrorCode.NOT_FOUND));
         if (agendaId != null) {
             requireAgenda(meetingId, agendaId);
         }
-        AgendaState state = lockOrCreate(meetingId);
         LineAgenda line = lineAgendaRepository.findById(new LineAgenda.Key(meetingId, seq))
                 .orElseGet(() -> new LineAgenda(meetingId, seq));
         line.correct(agendaId);

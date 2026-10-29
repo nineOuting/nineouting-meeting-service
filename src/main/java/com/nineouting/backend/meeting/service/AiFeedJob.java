@@ -14,6 +14,7 @@ import com.nineouting.backend.meeting.domain.ProgressEventType;
 import com.nineouting.backend.meeting.domain.TranscriptLine;
 import com.nineouting.backend.meeting.dto.AiEventMessage;
 import com.nineouting.backend.meeting.dto.AiLinesMessage;
+import com.nineouting.backend.meeting.repository.AgendaEditRepository;
 import com.nineouting.backend.meeting.repository.AiBatchRepository;
 import com.nineouting.backend.meeting.repository.AiFeedRepository;
 import com.nineouting.backend.meeting.repository.MeetingRepository;
@@ -38,6 +39,8 @@ import tools.jackson.databind.json.JsonMapper;
  *   <li>ai-service가 빠진 묶음 번호를 알려 주면(409) 저장해 둔 묶음을 그 번호부터 다시 보낸다</li>
  *   <li>종료(end) 알림은 남은 줄을 다 보낸 뒤에 보낸다. 먼저 가면 ai-service가 마지막 구간의 줄을 빠뜨린다</li>
  *   <li>ai-service가 거절하면(408·409·429를 뺀 4xx) 다시 보내지 않고 기록만 한다. 다시 보내면 뒤 묶음이 모두 막힌다</li>
+ *   <li>안건 목록과 사람의 고치기·무시·끝내기(AgendaSync)는 회의 알림보다 먼저 보낸다. ai-service가 재시작해
+ *       줄 묶음 1번을 다시 달라고 하면 이것들을 모두 다시 보낸 뒤 줄 묶음을 다시 보낸다</li>
  * </ul>
  */
 @Slf4j
@@ -54,6 +57,8 @@ public class AiFeedJob {
     private final AiBatchRepository batchRepository;
     private final MeetingRepository meetingRepository;
     private final AiServiceClient aiServiceClient;
+    private final AgendaSync agendaSync;
+    private final AgendaEditRepository editRepository;
     private final AiFeedProperties properties;
     private final JsonMapper jsonMapper;
     private final TransactionTemplate transactionTemplate;
@@ -80,6 +85,7 @@ public class AiFeedJob {
         }
         AiFeed feed = due.get();
         try {
+            agendaSync.sendPending(feed.getMeetingId());
             boolean endWaiting = sendEvents(feed);
             if (feed.isBatchDue(now) || endWaiting) {
                 boolean sendAgainNow = resendStoredBatches(feed) || sendNewBatch(feed, now);
@@ -136,7 +142,7 @@ public class AiFeedJob {
             }
             if (expected != null) {
                 feed.resendDone();
-                feed.requestResend(expected);
+                requestResend(feed, expected);
                 return true;
             }
         }
@@ -167,13 +173,21 @@ public class AiFeedJob {
         if (expected != null) {
             log.info("ai-service가 줄 묶음 {}번을 기다려 다시 보냅니다 (meetingId={}, 보낸 번호 {})",
                     expected, feed.getMeetingId(), batch);
-            feed.requestResend(expected);
+            requestResend(feed, expected);
             return true;
         }
         batchRepository.save(new AiBatch(feed.getMeetingId(), batch, payload, now));
         pending.forEach(line -> lineRepository.markSentToAi(line.getId(), line.getRev()));
         feed.batchSent();
         return false;
+    }
+
+    /** 1번을 다시 달라는 것은 ai-service가 재시작해 회의 상태를 잃었다는 뜻이다. 안건 목록·고친 것도 다시 보낸다 */
+    private void requestResend(AiFeed feed, int expected) {
+        if (expected == 1) {
+            agendaSync.markAllForResend(feed.getMeetingId());
+        }
+        feed.requestResend(expected);
     }
 
     /** 회의가 끝나고 늦게 오는 줄까지 기다린 뒤 보낼 것이 없으면 정리한다. 회의가 지워졌으면 바로 정리한다 */
@@ -184,6 +198,7 @@ public class AiFeedJob {
                 || (meeting.get().is(MeetingStatus.FINISHED)
                     && meeting.get().getFinishedAt().plus(properties.finishedGrace()).isBefore(now)
                     && !eventRepository.existsByMeetingIdAndSentFalse(meetingId)
+                    && !editRepository.existsByMeetingIdAndSentFalse(meetingId)
                     && lineRepository.findPendingForAi(meetingId).isEmpty());
         if (done) {
             batchRepository.deleteByMeetingIdIn(List.of(meetingId));

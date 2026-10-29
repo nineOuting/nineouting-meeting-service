@@ -12,13 +12,17 @@ public interface AiFeedRepository extends JpaRepository<AiFeed, Long> {
 
     /**
      * 보낼 차례인 회의 하나를 잠그고 가져온다. 다른 인스턴스가 잠근 회의는 건너뛴다.
-     * 줄 묶음 차례가 됐거나, 회의 알림이 쌓였고 ai-service가 정상이면(실패 중이 아니면) 차례다.
+     * 줄 묶음 차례가 됐거나, 회의 알림·안건 목록·사람의 고치기가 쌓였고 ai-service가 정상이면(실패 중이 아니면) 차례다.
      */
     @Query(value = """
             select * from ai_feeds f
             where f.next_attempt_at <= :now
-               or (f.failures = 0 and exists (select 1 from progress_events e
-                                              where e.meeting_id = f.meeting_id and not e.sent))
+               or (f.failures = 0 and (exists (select 1 from progress_events e
+                                               where e.meeting_id = f.meeting_id and not e.sent)
+                                       or exists (select 1 from agenda_edits a
+                                                  where a.meeting_id = f.meeting_id and not a.sent)
+                                       or exists (select 1 from agenda_states s
+                                                  where s.meeting_id = f.meeting_id and s.agendas_dirty)))
             order by f.next_attempt_at
             limit 1
             for update skip locked""", nativeQuery = true)

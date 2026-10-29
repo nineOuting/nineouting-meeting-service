@@ -72,11 +72,38 @@ public class AiServiceClient {
         }
     }
 
+    /** 안건 목록 전체 (ai-service docs/api/agenda-contract.md). 바뀔 때마다 통째로 보낸다 */
+    public void putAgendas(Long meetingId, String payloadJson) {
+        call("안건 목록", () -> restClient.put()
+                .uri("/internal/meetings/{meetingId}/agendas", meetingId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(payloadJson)
+                .retrieve()
+                .toBodilessEntity());
+    }
+
+    /**
+     * 사람의 고치기·무시·끝내기 (agenda-corrections, agenda-summary-edits, agenda-item-edits, decision-edits,
+     * off-topic-actions, end-requests). 응답 본문(accepted·stale 등)은 읽지 않는다. 2xx면 받은 것이다
+     */
+    public void postAgendaRequest(Long meetingId, String path, String payloadJson) {
+        call(path, () -> restClient.post()
+                .uri("/internal/meetings/{meetingId}/" + path, meetingId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(payloadJson)
+                .retrieve()
+                .toBodilessEntity());
+    }
+
     private static void call(Runnable request) {
+        call("회의 알림", request);
+    }
+
+    private static void call(String what, Runnable request) {
         try {
             request.run();
         } catch (HttpClientErrorException e) {
-            throw clientError("회의 알림", e);
+            throw clientError(what, e);
         } catch (RestClientException e) {
             throw new AiServiceException("ai-service 호출 실패: " + e.getMessage(), e);
         }

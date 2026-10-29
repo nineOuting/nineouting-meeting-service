@@ -30,7 +30,9 @@ public enum MeetingErrorCode implements ErrorCode {
     MEETING_ALREADY_PAUSED(HttpStatus.CONFLICT, "이미 멈춘 회의입니다"),
     MEETING_NOT_PAUSED(HttpStatus.CONFLICT, "멈춘 회의가 아닙니다"),
     INVALID_STT_TICKET(HttpStatus.UNAUTHORIZED, "연결 입장권이 없거나 만료되었습니다"),
-    TRANSCRIPT_NOT_EDITABLE(HttpStatus.CONFLICT, "아직 확정되지 않았거나 지운 줄은 고칠 수 없습니다");
+    TRANSCRIPT_NOT_EDITABLE(HttpStatus.CONFLICT, "아직 확정되지 않았거나 지운 줄은 고칠 수 없습니다"),
+    END_NOT_REQUESTED(HttpStatus.CONFLICT, "회의 끝내기를 누르지 않았습니다"),
+    MEETING_NOT_FINISHED(HttpStatus.CONFLICT, "끝난 회의만 할 수 있습니다");
 
     private final HttpStatus status;
     private final String message;

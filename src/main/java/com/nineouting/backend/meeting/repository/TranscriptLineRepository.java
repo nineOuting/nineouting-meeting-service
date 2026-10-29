@@ -62,6 +62,10 @@ public interface TranscriptLineRepository extends JpaRepository<TranscriptLine, 
     @Query("update TranscriptLine l set l.sentRev = :rev where l.id = :id")
     void markSentToAi(Long id, int rev);
 
+    /** 지금까지 받은 줄의 마지막 음성 시각(ms). 줄이 없으면 null (새 안건 제안 무시 시각, ai-service 재시작 복구용) */
+    @Query("select max(coalesce(l.endMs, l.startMs)) from TranscriptLine l where l.meetingId = :meetingId")
+    Long findLastMs(Long meetingId);
+
     @Modifying
     @Query("delete from TranscriptLine l where l.meetingId in :meetingIds")
     void deleteByMeetingIdIn(Collection<Long> meetingIds);

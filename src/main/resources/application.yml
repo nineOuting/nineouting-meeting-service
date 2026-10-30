@@ -1,0 +1,50 @@
+server:
+  port: ${SERVER_PORT:8083}
+
+spring:
+  application:
+    name: meeting-service
+  config:
+    import: classpath:observability/defaults.yml
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5436/meeting_db}
+    username: ${DB_USERNAME:meeting_service}
+    password: ${DB_PASSWORD:meeting_service}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate   # 스키마는 Flyway만 바꾼다
+  data:
+    redis:
+      # 여러 인스턴스로 띄울 때 회의방 메시지를 모든 인스턴스에 전달한다 (Pub/Sub)
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+nineouting:
+  # 이벤트는 SNS로 보내고 서비스 큐(SQS)로 받는다. 자격 증명은 AWS SDK 기본 방식 (EKS는 IRSA, 로컬은 LocalStack)
+  messaging:
+    region: ${AWS_REGION:ap-northeast-2}
+    endpoint: ${AWS_ENDPOINT_URL:}          # 비우면 AWS. 로컬은 LocalStack (http://localhost:4566)
+    access-key: ${MESSAGING_ACCESS_KEY:}    # 비우면 AWS 기본 자격 증명. LocalStack은 test
+    secret-key: ${MESSAGING_SECRET_KEY:}
+  outbox:
+    topic-prefix: ${SNS_TOPIC_PREFIX:arn:aws:sns:ap-northeast-2:000000000000:nineouting-local-}
+  security:
+    jwt:
+      jwks-uri: ${JWT_JWKS_URI:http://localhost:8081/.well-known/jwks.json}
+  inbox:
+    # 이 서비스 큐. 받는 이벤트는 SNS 구독이 정한다: workspace.folder-deleted, minutes.review-requested, minutes.confirmed
+    queue: ${SQS_QUEUE_URL:http://localhost:4566/000000000000/nineouting-local-meeting-service.fifo}
+  clients:
+    user-service-url: ${USER_SERVICE_URL:http://localhost:8081}
+    workspace-service-url: ${WORKSPACE_SERVICE_URL:http://localhost:8082}
+  meeting:
+    ai:
+      # 회의 알림·줄 묶음을 밀어 줄 ai-service 주소. 비우면 보내지 않는다 (docs/services/ai-integration.md 2.4)
+      base-url: ${AI_SERVICE_URL:}
+      batch-interval: 10s
+      poll-interval: 1s
+      health-interval: 5s   # /health 확인 주기 (AI 일시 중단 감지, REQ-082)
+      connect-timeout: 2s
+      read-timeout: 5s
+      finished-grace: 5m

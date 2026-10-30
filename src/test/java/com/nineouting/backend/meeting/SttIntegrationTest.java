@@ -19,6 +19,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -32,6 +33,9 @@ class SttIntegrationTest extends ApiTestSupport {
 
     @Autowired
     private TransactionTemplate transactionTemplate;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     private Long owner;
     private Long writer;
@@ -100,6 +104,40 @@ class SttIntegrationTest extends ApiTestSupport {
         internal(transcripts(), segments("""
                 {"seq":9,"rev":1,"text":"음","startMs":0,"final":true,"kind":"cough"}"""))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void STT가_버린_말하는_중_줄은_지우고_확정된_줄은_지우지_않는다() throws Exception {
+        start();
+        internal(transcripts(), segments(segment(1, 1, "배포는 목요일로", 1000, 2000L, true),
+                segment(2, 1, "그게 말실", 3000, null, false), segment(3, 2, "말하는 중", 5000, null, false)));
+
+        internal(transcripts(), segments(deleted(segment(1, 2, "배포는 목요일로", 1000, 2000L, true)),
+                deleted(segment(2, 2, "그게 말실", 3000, null, false)),
+                deleted(segment(3, 1, "말하는 중", 5000, null, false)),   // 늦게 온 옛 rev
+                deleted(segment(9, 1, "없는 줄", 9000, null, false)))).andExpect(status().isNoContent());
+
+        call(writer, get(transcripts().replace("/internal", "/api")), null)
+                .andExpect(jsonPath("$.data[*].seq", contains(1, 3)));
+        // 지운 줄은 STT가 다시 보내도 살아나지 않는다
+        internal(transcripts(), segments(segment(2, 3, "그게 말실", 3000, null, false)));
+        call(writer, get(transcripts().replace("/internal", "/api")), null)
+                .andExpect(jsonPath("$.data[*].seq", contains(1, 3)));
+    }
+
+    @Test
+    void 마무리하고_STT의_종료_알림이_없으면_대신_보낸다() throws Exception {
+        start();
+        internal(transcripts(), segments(segment(1, 1, "마지막 말", 1000, 2500L, true)));
+        call(writer, post("/api/meetings/" + meetingId + "/finish"), null).andExpect(status().isOk());
+        // 브라우저가 끊긴 채 마무리해 STT가 end를 못 보낸 채로 30초가 지났다
+        jdbcTemplate.update("update meetings set finished_at = finished_at - interval '31 seconds' where id = ?", meetingId);
+
+        awaitEvents(1);
+        String end = FakeAiService.received(meetingId, "events").getLast();
+        assertThat(JsonPath.<String>read(end, "$.event")).isEqualTo("end");
+        assertThat(JsonPath.<Integer>read(end, "$.atMs")).isEqualTo(2500);
+        assertThat(FakeAiService.receivedKinds(meetingId)).endsWith("batches", "events");
     }
 
     @Test
@@ -271,6 +309,10 @@ class SttIntegrationTest extends ApiTestSupport {
         return """
                 {"seq":%d,"rev":%d,"speakerLabel":"화자 1","text":"%s","startMs":%d,"endMs":%s,"final":%s}"""
                 .formatted(seq, rev, text, startMs, endMs, isFinal);
+    }
+
+    private static String deleted(String segment) {
+        return segment.substring(0, segment.length() - 1) + ",\"deleted\":true}";
     }
 
     private List<Integer> batchNumbers() {

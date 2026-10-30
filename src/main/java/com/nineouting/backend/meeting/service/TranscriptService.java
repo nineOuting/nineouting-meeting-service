@@ -29,12 +29,21 @@ public class TranscriptService {
     private final ApplicationEventPublisher events;
     private final Clock clock;
 
-    /** stt-service가 보낸 줄. 같은 seq는 줄 전체가 오므로 통째로 바꾼다 */
+    /**
+     * stt-service가 보낸 줄. 같은 seq는 줄 전체가 오므로 통째로 바꾼다.
+     * deleted면 확정하지 않고 버린 말하는 중 줄이라 지우고, 사용자가 지울 때와 같은 알림을 회의방에 보낸다
+     */
     @Transactional
     public void saveFromStt(Long meetingId, List<Segment> segments) {
         access.requireStarted(meetingId);
         LocalDateTime now = now();
         for (Segment segment : segments) {
+            if (Boolean.TRUE.equals(segment.deleted())) {
+                if (lineRepository.deleteFromStt(meetingId, segment.seq(), segment.rev(), now) > 0) {
+                    events.publishEvent(RoomEvent.send(meetingId, RoomMessage.transcriptDeleted(segment.seq(), segment.rev())));
+                }
+                continue;
+            }
             boolean lowConfidence = Boolean.TRUE.equals(segment.lowConfidence());
             boolean recovered = Boolean.TRUE.equals(segment.recovered());
             int applied = lineRepository.upsertFromStt(meetingId, segment.seq(), segment.rev(),

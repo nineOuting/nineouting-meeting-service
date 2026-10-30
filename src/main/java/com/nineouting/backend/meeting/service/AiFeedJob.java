@@ -21,6 +21,7 @@ import com.nineouting.backend.meeting.repository.MeetingRepository;
 import com.nineouting.backend.meeting.repository.ProgressEventRepository;
 import com.nineouting.backend.meeting.repository.TranscriptLineRepository;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -50,6 +51,8 @@ public class AiFeedJob {
 
     /** 한 번 돌 때 처리하는 회의 수 상한 (다른 회의가 오래 밀리지 않게) */
     private static final int MAX_FEEDS_PER_RUN = 50;
+    /** 마무리 뒤 stt-service의 종료 알림을 기다리는 시간 (STT는 남은 줄을 최대 3초 기다린 뒤 보낸다) */
+    static final Duration STT_END_WAIT = Duration.ofSeconds(30);
 
     private final AiFeedRepository feedRepository;
     private final ProgressEventRepository eventRepository;
@@ -85,6 +88,7 @@ public class AiFeedJob {
         }
         AiFeed feed = due.get();
         try {
+            endIfSttDidNot(feed.getMeetingId(), now);
             agendaSync.sendPending(feed.getMeetingId());
             boolean endWaiting = sendEvents(feed);
             if (feed.isBatchDue(now) || endWaiting) {
@@ -188,6 +192,23 @@ public class AiFeedJob {
             agendaSync.markAllForResend(feed.getMeetingId());
         }
         feed.requestResend(expected);
+    }
+
+    /**
+     * 회의 종료(end)는 stt-service가 남은 줄을 보낸 뒤 알린다. 마무리 순간 브라우저가 끊겨 있거나 창을 닫아
+     * STT_END_WAIT가 지나도 오지 않으면 대신 넣는다 (없으면 ai-service가 마지막 요약을 만들지 않아 회의록 초안도 못 만든다)
+     */
+    private void endIfSttDidNot(Long meetingId, LocalDateTime now) {
+        Optional<Meeting> meeting = meetingRepository.findById(meetingId);
+        if (meeting.isEmpty() || !meeting.get().is(MeetingStatus.FINISHED)
+                || !meeting.get().getFinishedAt().plus(STT_END_WAIT).isBefore(now)
+                || eventRepository.existsByMeetingIdAndEvent(meetingId, ProgressEventType.END)) {
+            return;
+        }
+        Long lastMs = lineRepository.findLastMs(meetingId);
+        eventRepository.insertIgnoringDuplicate(meetingId, ProgressEventType.END.name(), lastMs == null ? 0 : lastMs, now);
+        log.warn("회의를 마무리하고 {}초가 지나도 STT의 종료 알림이 없어 대신 보냅니다 (meetingId={})",
+                STT_END_WAIT.toSeconds(), meetingId);
     }
 
     /** 회의가 끝나고 늦게 오는 줄까지 기다린 뒤 보낼 것이 없으면 정리한다. 회의가 지워졌으면 바로 정리한다 */

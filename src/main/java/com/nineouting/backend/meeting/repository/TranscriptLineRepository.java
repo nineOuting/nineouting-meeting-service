@@ -37,6 +37,19 @@ public interface TranscriptLineRepository extends JpaRepository<TranscriptLine, 
     int upsertFromStt(Long meetingId, int seq, int rev, String speakerLabel, String text, long startMs, Long endMs,
                        boolean isFinal, boolean lowConfidence, String kind, boolean recovered, LocalDateTime now);
 
+    /**
+     * stt-service가 확정하지 않고 버린 말하는 중 줄을 지운다. 덮어쓰기와 같은 조건이다
+     * (rev가 더 클 때만, 확정되거나 이미 지운 줄은 그대로). 줄이 없으면 아무것도 하지 않는다.
+     *
+     * @return 지웠으면 1, 무시했으면 0
+     */
+    @Modifying
+    @Query(value = """
+            update transcript_lines set deleted = true, rev = :rev, updated_at = :now
+            where meeting_id = :meetingId and seq = :seq
+              and rev < :rev and not is_final and not deleted""", nativeQuery = true)
+    int deleteFromStt(Long meetingId, int seq, int rev, LocalDateTime now);
+
     /** 화면·저장 순서는 startMs 기준 (보완 줄이 앞 시각에 끼워진다) */
     List<TranscriptLine> findByMeetingIdAndDeletedFalseOrderByStartMsAscSeqAsc(Long meetingId);
 

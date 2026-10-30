@@ -1,6 +1,7 @@
 package com.nineouting.backend.meeting.repository;
 
 import com.nineouting.backend.meeting.domain.ProgressEvent;
+import com.nineouting.backend.meeting.domain.ProgressEventType;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -21,6 +22,8 @@ public interface ProgressEventRepository extends JpaRepository<ProgressEvent, Lo
     List<ProgressEvent> findByMeetingIdAndSentFalseOrderById(Long meetingId);
 
     boolean existsByMeetingIdAndSentFalse(Long meetingId);
+
+    boolean existsByMeetingIdAndEvent(Long meetingId, ProgressEventType event);
 
     @Modifying
     @Query("delete from ProgressEvent e where e.meetingId in :meetingIds")

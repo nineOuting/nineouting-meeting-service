@@ -21,6 +21,7 @@ public record TranscriptSegmentsRequest(
      * @param seq       1 이상 (0 이하는 사용자가 직접 추가하는 줄에 남겨 둔다)
      * @param rev       같은 seq의 갱신 번호. 더 큰 것만 반영한다
      * @param finalLine JSON 이름은 final
+     * @param deleted   true면 STT가 확정하지 않고 버린 말하는 중 줄 (나머지 칸은 마지막으로 보낸 값 그대로, 쓰지 않는다)
      */
     public record Segment(
             @NotNull @Min(value = 1, message = "seq는 1 이상입니다") Integer seq,
@@ -32,7 +33,8 @@ public record TranscriptSegmentsRequest(
             @JsonProperty("final") @NotNull Boolean finalLine,
             Boolean lowConfidence,
             @Pattern(regexp = "backchannel|filler", message = "kind는 backchannel, filler 또는 null입니다") String kind,
-            Boolean recovered
+            Boolean recovered,
+            Boolean deleted
     ) {
     }
 }

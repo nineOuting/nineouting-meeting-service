@@ -11,6 +11,7 @@ import com.nineouting.backend.meeting.domain.AgendaStatus;
 import com.nineouting.backend.meeting.domain.LineAgenda;
 import com.nineouting.backend.meeting.domain.Meeting;
 import com.nineouting.backend.meeting.domain.MeetingStatus;
+import com.nineouting.backend.meeting.domain.TranscriptLine;
 import com.nineouting.backend.meeting.dto.AgendaBoardResponse;
 import com.nineouting.backend.meeting.dto.AgendaItemEditRequest;
 import com.nineouting.backend.meeting.dto.DraftSourceResponse;
@@ -328,7 +329,7 @@ public class AgendaBoardService {
         return new TodaySummaryResponse(true, todaySummary);
     }
 
-    /** minutes-service용: AI 회의록 초안의 재료 (안건, 점검을 마친 오늘 회의 요약) */
+    /** minutes-service용: AI 회의록 초안의 재료 (안건, 점검을 마친 오늘 회의 요약, 확정된 전사 줄) */
     @Transactional(readOnly = true)
     public DraftSourceResponse draftSource(Long meetingId) {
         meetingRepository.findById(meetingId).orElseThrow(() -> new BusinessException(CommonErrorCode.NOT_FOUND));
@@ -344,7 +345,12 @@ public class AgendaBoardService {
         String saved = stateRepository.findById(meetingId).map(AgendaState::getTodaySummary).orElse(null);
         JsonNode summary = saved == null ? jsonMapper.createObjectNode().set("agendas", jsonMapper.createArrayNode())
                 : jsonMapper.readTree(saved);
-        return new DraftSourceResponse(meetingId, saved != null, agendas, summary);
+        List<DraftSourceResponse.Transcript> transcripts = transcriptLineRepository
+                .findByMeetingIdAndDeletedFalseOrderByStartMsAscSeqAsc(meetingId).stream()
+                .filter(TranscriptLine::isFinalLine)
+                .map(line -> new DraftSourceResponse.Transcript(line.getSeq(), line.getText(), line.isLowConfidence()))
+                .toList();
+        return new DraftSourceResponse(meetingId, saved != null, agendas, summary, transcripts);
     }
 
     /** 회의 시작(REQ-076)·회의 중 안건 추가(REQ-090) 때 ai-service로 안건 목록을 다시 보내게 한다 */

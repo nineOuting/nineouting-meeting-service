@@ -176,6 +176,10 @@ class AgendaBoardTest extends ApiTestSupport {
 
         call(writer, put("/api/meetings/" + meetingId + "/today-summary"), "{\"agendas\":[]}")
                 .andExpect(jsonPath("$.code").value("MEETING_NOT_FINISHED"));
+        internalPost("/internal/meetings/" + meetingId + "/transcripts", "{\"segments\":["
+                + "{\"seq\":1,\"rev\":1,\"text\":\"테라폼으로 올리죠\",\"startMs\":1000,\"endMs\":2000,\"final\":true},"
+                + "{\"seq\":2,\"rev\":1,\"text\":\"테로폰\",\"startMs\":3000,\"endMs\":4000,\"final\":true,\"lowConfidence\":true},"
+                + "{\"seq\":3,\"rev\":1,\"text\":\"말하는 중\",\"startMs\":5000,\"final\":false}]}");
         call(writer, post("/api/meetings/" + meetingId + "/finish"), null).andExpect(status().isOk());
         // 마지막 보드는 회의가 끝난 뒤에 온다
         internalPut("agenda-board", board(600, "UNDECIDED", null).replace("\"todaySummary\":null",
@@ -195,7 +199,11 @@ class AgendaBoardTest extends ApiTestSupport {
                 .andExpect(jsonPath("$.data.agendas[0].title").value("배포 일정"))
                 .andExpect(jsonPath("$.data.agendas[0].decisionPoints[*].text").value(contains("배포 날짜", "QA 담당")))
                 .andExpect(jsonPath("$.data.agendas[0].decisionPoints[1].position").value(2))
-                .andExpect(jsonPath("$.data.summary.agendas[0].todos[0].task").value("회의실 예약"));
+                .andExpect(jsonPath("$.data.summary.agendas[0].todos[0].task").value("회의실 예약"))
+                // 확정된 줄만 (말하는 중인 줄 3은 빠진다)
+                .andExpect(jsonPath("$.data.transcripts[*].seq").value(contains(1, 2)))
+                .andExpect(jsonPath("$.data.transcripts[0].text").value("테라폼으로 올리죠"))
+                .andExpect(jsonPath("$.data.transcripts[1].lowConfidence").value(true));
     }
 
     @Test

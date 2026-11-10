@@ -8,6 +8,8 @@ import java.util.List;
 /**
  * 회의 대기 화면 (REQ-074~075), 이전 설정 불러오기 (REQ-063).
  * 경과 시간(REQ-081) = 지금 - startedAt - pausedSeconds - (paused면 지금 - pausedAt). 멈춘 동안은 늘지 않는다 (REQ-084)
+ *
+ * @param templateId 대기 화면에서 고른 회의록 양식 (REQ-123). 안 골랐으면 null
  */
 public record MeetingDetailResponse(
         Long meetingId,
@@ -28,6 +30,7 @@ public record MeetingDetailResponse(
         LocalDateTime finishedAt,
         boolean paused,
         LocalDateTime pausedAt,
-        long pausedSeconds
+        long pausedSeconds,
+        Long templateId
 ) {
 }

@@ -69,6 +69,25 @@ class MeetingProgressTest extends ApiTestSupport {
     }
 
     @Test
+    void 대기_화면에서_고른_회의록_양식을_마무리_이벤트에_담는다() throws Exception {
+        Long meetingId = createMeeting(folderId, owner, writer, writer);
+        String path = "/api/meetings/" + meetingId + "/template";
+
+        // REQ-123 참석자만, 시작 전에만 고른다 (REQ-130)
+        call(folderMember, put(path), "{\"templateId\":7}").andExpect(status().isForbidden());
+        call(owner, put(path), "{\"templateId\":7}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.templateId").value(7));
+        call(folderMember, get("/api/meetings/" + meetingId), null).andExpect(jsonPath("$.data.templateId").value(7));
+
+        call(writer, post("/api/meetings/" + meetingId + "/start"), null).andExpect(status().isOk());
+        call(writer, put(path), "{\"templateId\":8}").andExpect(jsonPath("$.code").value("MEETING_NOT_EDITABLE"));
+        call(writer, post("/api/meetings/" + meetingId + "/finish"), null).andExpect(status().isOk());
+        assertThat(outboxContains(MeetingFinished.TYPE, "\"meetingId\":%d,".formatted(meetingId))).isTrue();
+        assertThat(outboxContains(MeetingFinished.TYPE, "\"templateId\":7")).isTrue();
+    }
+
+    @Test
     void 넘긴_안건은_다음_회의에서_불러오면_목록에서_빠지고_다시_불러올_수_없다() throws Exception {
         Long first = createMeeting(folderId, owner, writer, writer);
         call(writer, post("/api/meetings/" + first + "/start"), null);

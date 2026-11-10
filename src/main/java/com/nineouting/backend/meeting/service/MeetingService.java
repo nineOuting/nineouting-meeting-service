@@ -165,6 +165,14 @@ public class MeetingService {
         return detail(meeting);
     }
 
+    /** REQ-123 회의록 양식 고르기. 참석자 모두, 시작 전에만 (REQ-130) */
+    @Transactional
+    public MeetingDetailResponse chooseTemplate(Long meetingId, Long userId, Long templateId) {
+        Meeting meeting = access.requireEditable(meetingId, userId);
+        meeting.chooseTemplate(templateId);
+        return detail(meeting);
+    }
+
     /** REQ-073. 참석자 모두, 시작 전에만. 불러온 남은 안건은 다시 대기로 돌린다. */
     @Transactional
     public void cancel(Long meetingId, Long userId) {
@@ -236,7 +244,8 @@ public class MeetingService {
                 attendees.stream().map(id -> PersonResponse.of(id, users.get(id))).toList(),
                 agendaRepository.findByMeetingIdOrderByPosition(meeting.getId()).stream().map(AgendaResponse::from).toList(),
                 meeting.getPreviousMeetingId(), meeting.getStartedAt(), meeting.getFinishedAt(),
-                meeting.isPaused(), meeting.getPausedAt(), meeting.getPausedTotalMs() / MILLIS_PER_SECOND);
+                meeting.isPaused(), meeting.getPausedAt(), meeting.getPausedTotalMs() / MILLIS_PER_SECOND,
+                meeting.getTemplateId());
     }
 
     /** 요청한 참석자 + 만든 사람 (요청 순서 유지) */

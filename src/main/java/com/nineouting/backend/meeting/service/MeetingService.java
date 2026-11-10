@@ -107,7 +107,7 @@ public class MeetingService {
         access.requireFolderAccess(folderId, userId);
         PageRequest pageable = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, MAX_PAGE_SIZE),
                 Sort.by(Sort.Order.desc("startAt"), Sort.Order.desc("id")));
-        Page<Meeting> result = meetingRepository.findByFolderIdAndStatusNot(folderId, MeetingStatus.CANCELLED, pageable);
+        Page<Meeting> result = meetingRepository.findByFolderIdAndStatusNotAndDeletedAtIsNull(folderId, MeetingStatus.CANCELLED, pageable);
         List<Meeting> meetings = result.getContent();
         Map<Long, List<Long>> attendees = attendeeRepository.findByMeetingIdInOrderById(
                         meetings.stream().map(Meeting::getId).toList()).stream()

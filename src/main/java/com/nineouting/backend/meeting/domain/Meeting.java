@@ -82,6 +82,13 @@ public class Meeting extends BaseTimeEntity {
     @Column(name = "minutes_status", length = 20)
     private MinutesProgress minutesStatus;
 
+    /** REQ-166, REQ-143 쓰레기통에 넣은 시각. null이면 쓰레기통에 없다 */
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Column(name = "deleted_by_user_id")
+    private Long deletedByUserId;
+
     public Meeting(Long workspaceId, Long folderId, Long ownerUserId, Long previousMeetingId) {
         this.workspaceId = workspaceId;
         this.folderId = folderId;
@@ -146,6 +153,22 @@ public class Meeting extends BaseTimeEntity {
     public void cancel(LocalDateTime now) {
         this.status = MeetingStatus.CANCELLED;
         this.cancelledAt = now;
+    }
+
+    public boolean isTrashed() {
+        return deletedAt != null;
+    }
+
+    /** REQ-166 쓰레기통으로 */
+    public void trash(Long userId, LocalDateTime now) {
+        this.deletedAt = now;
+        this.deletedByUserId = userId;
+    }
+
+    /** REQ-143 복구 */
+    public void restore() {
+        this.deletedAt = null;
+        this.deletedByUserId = null;
     }
 
     /** 이벤트 순서가 바뀌어 와도 확정을 검토 중으로 되돌리지 않는다 */

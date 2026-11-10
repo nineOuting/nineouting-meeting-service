@@ -32,7 +32,9 @@ public enum MeetingErrorCode implements ErrorCode {
     INVALID_STT_TICKET(HttpStatus.UNAUTHORIZED, "연결 입장권이 없거나 만료되었습니다"),
     TRANSCRIPT_NOT_EDITABLE(HttpStatus.CONFLICT, "아직 확정되지 않았거나 지운 줄은 고칠 수 없습니다"),
     END_NOT_REQUESTED(HttpStatus.CONFLICT, "회의 끝내기를 누르지 않았습니다"),
-    MEETING_NOT_FINISHED(HttpStatus.CONFLICT, "끝난 회의만 할 수 있습니다");
+    MEETING_NOT_FINISHED(HttpStatus.CONFLICT, "끝난 회의만 할 수 있습니다"),
+    LAST_AGENDA_UNDELETABLE(HttpStatus.CONFLICT, "안건은 1개 이상 남겨야 합니다"),
+    MEETING_IN_PROGRESS_UNDELETABLE(HttpStatus.CONFLICT, "진행 중인 회의는 지울 수 없습니다. 먼저 회의를 끝내 주세요");
 
     private final HttpStatus status;
     private final String message;

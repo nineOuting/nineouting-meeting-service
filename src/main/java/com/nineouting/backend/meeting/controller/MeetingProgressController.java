@@ -7,6 +7,7 @@ import com.nineouting.backend.meeting.dto.AddAgendaRequest;
 import com.nineouting.backend.meeting.dto.AgendaResponse;
 import com.nineouting.backend.meeting.dto.CarryOverRequest;
 import com.nineouting.backend.meeting.dto.PendingAgendaResponse;
+import com.nineouting.backend.meeting.dto.RenameAgendaRequest;
 import com.nineouting.backend.meeting.service.MeetingProgressService;
 import com.nineouting.backend.meeting.service.PendingAgendaService;
 import jakarta.validation.Valid;
@@ -14,9 +15,11 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -56,6 +59,22 @@ public class MeetingProgressController {
                                                                  @Valid @RequestBody AddAgendaRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok(progressService.addAgenda(meetingId, user.userId(), request)));
+    }
+
+    /** REQ-173 회의 중 안건 이름 고치기 (회의록 작성자) */
+    @PutMapping("/api/meetings/{meetingId}/agendas/{agendaId}")
+    public ApiResponse<AgendaResponse> renameAgenda(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId,
+                                                    @PathVariable Long agendaId,
+                                                    @Valid @RequestBody RenameAgendaRequest request) {
+        return ApiResponse.ok(progressService.renameAgenda(meetingId, user.userId(), agendaId, request.title()));
+    }
+
+    /** REQ-173 회의 중 안건 삭제 (회의록 작성자, 1개는 남긴다) */
+    @DeleteMapping("/api/meetings/{meetingId}/agendas/{agendaId}")
+    public ApiResponse<Void> deleteAgenda(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId,
+                                          @PathVariable Long agendaId) {
+        progressService.deleteAgenda(meetingId, user.userId(), agendaId);
+        return ApiResponse.ok();
     }
 
     /** REQ-094 */

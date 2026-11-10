@@ -81,4 +81,9 @@ public class Agenda {
     public void linkPendingAgenda(Long pendingAgendaId) {
         this.pendingAgendaId = pendingAgendaId;
     }
+
+    /** REQ-173 회의 중 안건 이름 고치기 */
+    public void rename(String title) {
+        this.title = title;
+    }
 }

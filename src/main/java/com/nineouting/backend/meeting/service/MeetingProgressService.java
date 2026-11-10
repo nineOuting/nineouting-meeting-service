@@ -6,6 +6,7 @@ import com.nineouting.backend.common.web.error.BusinessException;
 import com.nineouting.backend.common.web.error.CommonErrorCode;
 import com.nineouting.backend.meeting.domain.Agenda;
 import com.nineouting.backend.meeting.domain.AiFeed;
+import com.nineouting.backend.meeting.domain.LineAgenda;
 import com.nineouting.backend.meeting.domain.Meeting;
 import com.nineouting.backend.meeting.domain.MeetingAttendee;
 import com.nineouting.backend.meeting.domain.MeetingStatus;
@@ -17,6 +18,7 @@ import com.nineouting.backend.meeting.dto.RoomMessage;
 import com.nineouting.backend.meeting.error.MeetingErrorCode;
 import com.nineouting.backend.meeting.repository.AgendaRepository;
 import com.nineouting.backend.meeting.repository.AiFeedRepository;
+import com.nineouting.backend.meeting.repository.LineAgendaRepository;
 import com.nineouting.backend.meeting.repository.MeetingAttendeeRepository;
 import com.nineouting.backend.meeting.repository.PendingAgendaRepository;
 import java.time.Clock;
@@ -41,6 +43,7 @@ public class MeetingProgressService {
     private final AgendaRepository agendaRepository;
     private final AiFeedRepository aiFeedRepository;
     private final AgendaBoardService agendaBoardService;
+    private final LineAgendaRepository lineAgendaRepository;
     private final PendingAgendaRepository pendingAgendaRepository;
     private final MeetingAttendeeRepository attendeeRepository;
     private final MeetingAccess access;
@@ -95,6 +98,43 @@ public class MeetingProgressService {
         // 새 안건 제안을 받아들여 등록한 것도 이것으로 알린다 (ai-service가 떠 있던 제안을 거둔다, REQ-091)
         agendaBoardService.agendasChanged(meetingId);
         return AgendaResponse.from(agenda);
+    }
+
+    /** REQ-173 회의 중 안건 이름 고치기. 회의록 작성자만 */
+    @Transactional
+    public AgendaResponse renameAgenda(Long meetingId, Long userId, Long agendaId, String title) {
+        access.requireWriterInProgress(meetingId, userId);
+        Agenda agenda = agendaOf(meetingId, agendaId);
+        agenda.rename(title);
+        agendaBoardService.agendasChanged(meetingId);
+        return AgendaResponse.from(agenda);
+    }
+
+    /**
+     * REQ-173 회의 중 안건 삭제. 회의록 작성자만, 1개는 남긴다.
+     * 이 안건으로 나뉜 줄은 "해당 없음"으로 돌리고, 남은 안건에서 불러온 안건이면 다시 대기로 돌린다.
+     */
+    @Transactional
+    public void deleteAgenda(Long meetingId, Long userId, Long agendaId) {
+        access.requireWriterInProgress(meetingId, userId);
+        Agenda agenda = agendaOf(meetingId, agendaId);
+        if (agendaRepository.findByMeetingIdOrderByPosition(meetingId).size() <= 1) {
+            throw new BusinessException(MeetingErrorCode.LAST_AGENDA_UNDELETABLE);
+        }
+        lineAgendaRepository.findByMeetingIdAndAgendaId(meetingId, agendaId).forEach(line -> line.correct(null));
+        if (agenda.getPendingAgendaId() != null) {
+            pendingAgendaRepository.findByIdForUpdate(agenda.getPendingAgendaId())
+                    .filter(pending -> pending.isTakenBy(meetingId))
+                    .ifPresent(PendingAgenda::release);
+        }
+        agendaRepository.delete(agenda);
+        agendaBoardService.agendasChanged(meetingId);
+    }
+
+    private Agenda agendaOf(Long meetingId, Long agendaId) {
+        return agendaRepository.findById(agendaId)
+                .filter(agenda -> agenda.getMeetingId().equals(meetingId))
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.NOT_FOUND));
     }
 
     /**

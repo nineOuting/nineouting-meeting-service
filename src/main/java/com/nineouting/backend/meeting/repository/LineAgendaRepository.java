@@ -11,6 +11,9 @@ public interface LineAgendaRepository extends JpaRepository<LineAgenda, LineAgen
 
     List<LineAgenda> findByMeetingIdOrderBySeq(Long meetingId);
 
+    /** REQ-173 지운 안건으로 나뉜 줄 */
+    List<LineAgenda> findByMeetingIdAndAgendaId(Long meetingId, Long agendaId);
+
     List<LineAgenda> findByMeetingIdAndSeqIn(Long meetingId, Collection<Integer> seqs);
 
     @Modifying

@@ -35,7 +35,9 @@ public class MeetingAccess {
 
     /** 회의가 있는 폴더에 들어갈 수 있는 사람만 회의를 볼 수 있다 */
     public Meeting requireViewable(Long meetingId, Long userId) {
+        // 쓰레기통에 있는 회의는 없는 회의처럼 본다 (REQ-166)
         Meeting meeting = meetingRepository.findById(meetingId)
+                .filter(found -> !found.isTrashed())
                 .orElseThrow(() -> new BusinessException(CommonErrorCode.NOT_FOUND));
         requireFolderAccess(meeting.getFolderId(), userId);
         return meeting;

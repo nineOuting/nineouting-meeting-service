@@ -7,6 +7,7 @@ import com.nineouting.backend.meeting.dto.CalendarMeetingResponse;
 import com.nineouting.backend.meeting.dto.MeetingDetailResponse;
 import com.nineouting.backend.meeting.dto.MeetingPageResponse;
 import com.nineouting.backend.meeting.dto.MeetingRequest;
+import com.nineouting.backend.meeting.dto.MeetingTemplateRequest;
 import com.nineouting.backend.meeting.dto.MoveFolderRequest;
 import com.nineouting.backend.meeting.service.MeetingService;
 import jakarta.validation.Valid;
@@ -66,6 +67,13 @@ public class MeetingController {
     public ApiResponse<MeetingDetailResponse> update(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId,
                                                      @Valid @RequestBody MeetingRequest request) {
         return ApiResponse.ok(meetingService.update(meetingId, user.userId(), request));
+    }
+
+    /** REQ-123 회의록 양식 고르기 */
+    @PutMapping("/api/meetings/{meetingId}/template")
+    public ApiResponse<MeetingDetailResponse> chooseTemplate(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId,
+                                                             @RequestBody MeetingTemplateRequest request) {
+        return ApiResponse.ok(meetingService.chooseTemplate(meetingId, user.userId(), request.templateId()));
     }
 
     /** REQ-073 */

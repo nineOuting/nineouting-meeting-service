@@ -60,6 +60,10 @@ public class Meeting extends BaseTimeEntity {
     @Column(name = "previous_meeting_id")
     private Long previousMeetingId;
 
+    /** REQ-123 대기 화면에서 고른 회의록 양식 (minutes-service). null이면 안 골랐다 */
+    @Column(name = "template_id")
+    private Long templateId;
+
     @Column(name = "started_at")
     private LocalDateTime startedAt;
 
@@ -104,6 +108,11 @@ public class Meeting extends BaseTimeEntity {
         this.endAt = endAt;
         this.location = location;
         this.writerUserId = writerUserId;
+    }
+
+    /** REQ-123 회의록 양식 고르기 (시작 전, 서비스에서 확인) */
+    public void chooseTemplate(Long templateId) {
+        this.templateId = templateId;
     }
 
     public boolean isOwnedBy(Long userId) {

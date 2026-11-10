@@ -6,6 +6,7 @@ import com.nineouting.backend.common.web.error.BusinessException;
 import com.nineouting.backend.common.web.error.CommonErrorCode;
 import com.nineouting.backend.meeting.domain.Meeting;
 import com.nineouting.backend.meeting.domain.MeetingMaterial;
+import com.nineouting.backend.meeting.domain.MeetingStatus;
 import com.nineouting.backend.meeting.dto.MaterialResponse;
 import com.nineouting.backend.meeting.dto.MaterialUploadRequest;
 import com.nineouting.backend.meeting.dto.MaterialUploadResponse;
@@ -43,7 +44,11 @@ public class MaterialService {
     /** 업로드 주소를 준다. 브라우저가 다 올린 뒤 complete를 불러야 목록에 보인다 */
     @Transactional
     public MaterialUploadResponse prepare(Long meetingId, Long userId, MaterialUploadRequest request) {
-        access.requireAttendee(meetingId, userId);
+        Meeting meeting = access.requireAttendee(meetingId, userId);
+        // 취소된 회의에는 자료를 올리지 않는다 (끝난 회의는 회의 뒤에 자료를 나눌 수 있어 받는다)
+        if (meeting.is(MeetingStatus.CANCELLED)) {
+            throw new BusinessException(MeetingErrorCode.MEETING_CANCELLED);
+        }
         if (request.size() > MAX_BYTES) {
             throw new BusinessException(MeetingErrorCode.MATERIAL_TOO_LARGE);
         }

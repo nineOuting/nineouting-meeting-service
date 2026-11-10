@@ -90,6 +90,19 @@ class MaterialTest extends ApiTestSupport {
     }
 
     @Test
+    void 취소된_회의에는_자료를_올리지_않는다() throws Exception {
+        Long workspaceId = newId();
+        Long owner = newId();
+        Long folderId = folder(workspaceId, "폴더", owner);
+        Long meetingId = createMeeting(folderId, owner, owner);
+        call(owner, post("/api/meetings/" + meetingId + "/cancel"), null).andExpect(status().isOk());
+
+        call(owner, post("/api/meetings/" + meetingId + "/materials"), uploadJson("자료.txt", 10))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("MEETING_CANCELLED"));
+    }
+
+    @Test
     void 회의를_영구_삭제하면_사전_자료_파일도_지운다() throws Exception {
         Long workspaceId = newId();
         Long owner = newId();

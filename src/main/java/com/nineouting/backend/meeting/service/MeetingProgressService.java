@@ -20,6 +20,7 @@ import com.nineouting.backend.meeting.repository.AgendaRepository;
 import com.nineouting.backend.meeting.repository.AiFeedRepository;
 import com.nineouting.backend.meeting.repository.LineAgendaRepository;
 import com.nineouting.backend.meeting.repository.MeetingAttendeeRepository;
+import com.nineouting.backend.meeting.repository.MeetingRepository;
 import com.nineouting.backend.meeting.repository.PendingAgendaRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -46,6 +47,7 @@ public class MeetingProgressService {
     private final LineAgendaRepository lineAgendaRepository;
     private final PendingAgendaRepository pendingAgendaRepository;
     private final MeetingAttendeeRepository attendeeRepository;
+    private final MeetingRepository meetingRepository;
     private final MeetingAccess access;
     private final OutboxEventWriter outboxEventWriter;
     private final ApplicationEventPublisher events;
@@ -54,6 +56,9 @@ public class MeetingProgressService {
     /** REQ-076. 회의록 작성자만, 예정 상태면 언제든 */
     @Transactional
     public void start(Long meetingId, Long userId) {
+        // 먼저 잠그고 읽는다: 두 탭에서 동시에 눌러도 나중 요청은 앞 요청이 끝난 뒤의 상태(진행 중)를 보고 409를 받는다.
+        // 잠그지 않으면 둘 다 '예정'으로 보고 통과해 ai_feeds를 두 번 넣다가 500이 난다
+        meetingRepository.findForUpdate(meetingId);
         Meeting meeting = access.requireWriter(meetingId, userId);
         if (!meeting.is(MeetingStatus.SCHEDULED)) {
             throw new BusinessException(MeetingErrorCode.MEETING_ALREADY_STARTED);

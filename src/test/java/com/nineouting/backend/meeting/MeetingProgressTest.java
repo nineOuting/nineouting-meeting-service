@@ -9,7 +9,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.nineouting.backend.common.event.meeting.MeetingFinished;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -66,6 +72,29 @@ class MeetingProgressTest extends ApiTestSupport {
         assertThat(outboxContains(MeetingFinished.TYPE,
                 "\"location\":\"3층 회의실\",\"writerUserId\":%d,\"attendeeUserIds\":[%d,%d]".formatted(writer, owner, writer)))
                 .isTrue();
+    }
+
+    @Test
+    void 같은_회의를_두_곳에서_동시에_시작하면_하나만_시작하고_나머지는_이미_시작했다고_한다() throws Exception {
+        Long meetingId = createMeeting(folderId, owner, writer, writer);
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        CountDownLatch go = new CountDownLatch(1);
+        List<Future<Integer>> results = new ArrayList<>();
+        for (int i = 0; i < 2; i++) {
+            results.add(pool.submit(() -> {
+                go.await();
+                return call(writer, post("/api/meetings/" + meetingId + "/start"), null).andReturn().getResponse().getStatus();
+            }));
+        }
+        go.countDown();
+        List<Integer> statuses = new ArrayList<>();
+        for (Future<Integer> result : results) {
+            statuses.add(result.get(30, TimeUnit.SECONDS));
+        }
+        pool.shutdown();
+
+        assertThat(statuses).containsExactlyInAnyOrder(200, 409);
+        call(writer, get("/api/meetings/" + meetingId), null).andExpect(jsonPath("$.data.status").value("IN_PROGRESS"));
     }
 
     @Test

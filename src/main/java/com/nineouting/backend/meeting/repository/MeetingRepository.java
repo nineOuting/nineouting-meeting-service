@@ -2,16 +2,24 @@ package com.nineouting.backend.meeting.repository;
 
 import com.nineouting.backend.meeting.domain.Meeting;
 import com.nineouting.backend.meeting.domain.MeetingStatus;
+import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 public interface MeetingRepository extends JpaRepository<Meeting, Long> {
+
+    /** 상태를 바꾸기 전에 회의 줄을 잠근다 (같은 회의를 두 곳에서 동시에 시작할 때 한쪽만 통과) */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select m from Meeting m where m.id = :id")
+    Optional<Meeting> findForUpdate(Long id);
 
     /** 쓰레기통에 있는 회의는 뺀다 (REQ-166) */
     Page<Meeting> findByFolderIdAndStatusNotAndDeletedAtIsNull(Long folderId, MeetingStatus status, Pageable pageable);

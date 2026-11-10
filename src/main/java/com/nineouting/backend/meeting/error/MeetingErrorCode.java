@@ -18,6 +18,7 @@ public enum MeetingErrorCode implements ErrorCode {
     NOT_MEETING_ATTENDEE(HttpStatus.FORBIDDEN, "회의 참석자만 할 수 있습니다"),
     NOT_MEETING_WRITER(HttpStatus.FORBIDDEN, "회의록 작성자만 할 수 있습니다"),
     MEETING_NOT_EDITABLE(HttpStatus.CONFLICT, "시작 전인 회의만 수정·취소할 수 있습니다"),
+    MEETING_CANCELLED(HttpStatus.CONFLICT, "취소된 회의입니다"),
     MEETING_ALREADY_STARTED(HttpStatus.CONFLICT, "이미 시작했거나 끝난 회의입니다"),
     MEETING_NOT_IN_PROGRESS(HttpStatus.CONFLICT, "진행 중인 회의가 아닙니다"),
     MEETING_TIME_INVALID(HttpStatus.BAD_REQUEST, "종료 시간은 시작 시간보다 뒤여야 합니다"),

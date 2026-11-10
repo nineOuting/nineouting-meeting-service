@@ -39,6 +39,15 @@ nineouting:
     user-service-url: ${USER_SERVICE_URL:http://localhost:8081}
     workspace-service-url: ${WORKSPACE_SERVICE_URL:http://localhost:8082}
   meeting:
+    storage:                               # 회의 사전 자료 (S3, REQ-067). 파일은 meeting-materials/ 아래에 둔다
+      bucket: ${STORAGE_BUCKET:nineouting-dev-files}
+      region: ${AWS_REGION:ap-northeast-2}
+      endpoint: ${STORAGE_ENDPOINT:}        # 비우면 AWS S3
+      presign-endpoint: ${STORAGE_PRESIGN_ENDPOINT:}  # 브라우저에 줄 주소만 다를 때 (로컬 통합 환경)
+      access-key: ${STORAGE_ACCESS_KEY:}    # 비우면 AWS 기본 자격 증명(Pod Identity 등)
+      secret-key: ${STORAGE_SECRET_KEY:}
+      upload-url-ttl: 5m
+      download-url-ttl: 1h
     ai:
       # 회의 알림·줄 묶음을 밀어 줄 ai-service 주소. 비우면 보내지 않는다 (docs/services/ai-integration.md 2.4)
       base-url: ${AI_SERVICE_URL:}

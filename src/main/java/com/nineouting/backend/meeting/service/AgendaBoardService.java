@@ -314,7 +314,8 @@ public class AgendaBoardService {
 
     /**
      * 점검(회의가 끝난 뒤)에서 고친 오늘 회의 요약을 저장한다 (ai-service는 회의가 끝나면 고친 것을 받지 않는다).
-     * 회의록 작성자, 끝난 회의. {agendas[...]} 전체를 보낸다. AI 회의록 초안은 이 값으로 만든다
+     * 회의록 작성자, 끝난 회의. {agendas[...]} 전체를 보낸다. AI 회의록 초안은 이 값으로 만든다.
+     * 저장된 요약과 비교해 고친 항목에 edited를, 새로 넣은 항목에 u- 번호를 붙인다 (TodaySummaryRevision)
      */
     @Transactional
     public TodaySummaryResponse reviseTodaySummary(Long meetingId, Long userId, JsonNode todaySummary) {
@@ -322,11 +323,16 @@ public class AgendaBoardService {
         if (!meeting.is(MeetingStatus.FINISHED)) {
             throw new BusinessException(MeetingErrorCode.MEETING_NOT_FINISHED);
         }
-        if (todaySummary == null || !todaySummary.path("agendas").isArray()) {
+        if (!(todaySummary instanceof ObjectNode revised) || !todaySummary.path("agendas").isArray()) {
             throw new BusinessException(CommonErrorCode.INVALID_INPUT, "agendas 배열이 있어야 합니다");
         }
-        lockOrCreate(meetingId).reviseTodaySummary(jsonMapper.writeValueAsString(todaySummary));
-        return new TodaySummaryResponse(true, todaySummary);
+        AgendaState state = lockOrCreate(meetingId);
+        if (state.getTodaySummary() == null) {
+            throw new BusinessException(MeetingErrorCode.TODAY_SUMMARY_NOT_READY);
+        }
+        JsonNode marked = TodaySummaryRevision.mark(jsonMapper.readTree(state.getTodaySummary()), revised);
+        state.reviseTodaySummary(jsonMapper.writeValueAsString(marked));
+        return new TodaySummaryResponse(true, marked);
     }
 
     /** minutes-service용: AI 회의록 초안의 재료 (안건, 점검을 마친 오늘 회의 요약, 확정된 전사 줄) */

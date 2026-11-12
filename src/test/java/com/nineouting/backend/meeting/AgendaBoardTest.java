@@ -139,6 +139,24 @@ class AgendaBoardTest extends ApiTestSupport {
         String decision = await("decision-edits", body -> true);
         assertThat(JsonPath.<Integer>read(decision, "$.edits[0].decisionPointId").longValue()).isEqualTo(decisionPointId);
         assertThat(JsonPath.<String>read(decision, "$.edits[0].decisionText")).isEqualTo("10월 31일 배포");
+
+        // 결정할 사항 상태 정하기: 결정, 미결, AI 판정으로 되돌리기만 받는다 (작성자만)
+        String statusPath = "/api/meetings/" + meetingId + "/agendas/" + agendaId + "/decision-points/" + decisionPointId + "/status";
+        call(attendee, put(statusPath), "{\"status\":\"DECIDED\"}").andExpect(status().isForbidden());
+        call(writer, put(statusPath), "{\"status\":\"DECISION_CHECK\"}").andExpect(status().isBadRequest());
+        call(writer, put("/api/meetings/" + meetingId + "/agendas/" + agendaId + "/decision-points/999999/status"),
+                "{\"status\":\"DECIDED\"}").andExpect(status().isNotFound());
+        call(writer, put(statusPath), "{\"status\":\"DECIDED\"}").andExpect(status().isOk());
+        String statusEdit = await("status-edits", body -> body.contains("DECIDED"));
+        assertThat(JsonPath.<Integer>read(statusEdit, "$.edits[0].decisionPointId").longValue()).isEqualTo(decisionPointId);
+        assertThat(JsonPath.<Integer>read(statusEdit, "$.edits[0].rev")).isPositive();
+        call(writer, put(statusPath), "{\"status\":\"AUTO\"}").andExpect(status().isOk());
+        await("status-edits", body -> body.contains("AUTO"));
+        // 안건 전체: 그 안건의 결정할 사항마다 하나씩
+        call(writer, put("/api/meetings/" + meetingId + "/agendas/" + agendaId + "/decision-status"), "{\"status\":\"UNDECIDED\"}")
+                .andExpect(status().isOk());
+        String bulk = await("status-edits", body -> body.contains("UNDECIDED"));
+        assertThat(JsonPath.<List<String>>read(bulk, "$.edits[*].status")).containsOnly("UNDECIDED");
     }
 
     @Test
@@ -215,8 +233,11 @@ class AgendaBoardTest extends ApiTestSupport {
         awaitKind("batches", 1);
         call(writer, put("/api/meetings/" + meetingId + "/agendas/" + agendaId + "/decision-points/" + decisionPointId + "/decision"),
                 "{\"decisionText\":\"30일 배포\",\"evidenceSeqs\":[1]}").andExpect(status().isOk());
+        call(writer, put("/api/meetings/" + meetingId + "/agendas/" + agendaId + "/decision-points/" + decisionPointId + "/status"),
+                "{\"status\":\"UNDECIDED\"}").andExpect(status().isOk());
         call(writer, post("/api/meetings/" + meetingId + "/off-topic/dismiss"), null).andExpect(status().isOk());
         awaitKind("decision-edits", 1);
+        awaitKind("status-edits", 1);
         awaitKind("off-topic-actions", 1);
 
         // ai-service 재시작: 다음 줄 묶음에 1번부터 다시 달라고 답한다
@@ -225,6 +246,8 @@ class AgendaBoardTest extends ApiTestSupport {
                 "{\"segments\":[{\"seq\":2,\"rev\":1,\"text\":\"둘째 줄\",\"startMs\":3000,\"endMs\":4000,\"final\":true}]}");
         awaitKind("agendas", 2);
         awaitKind("decision-edits", 2);
+        String replayedStatus = awaitKind("status-edits", 2);
+        assertThat(JsonPath.<String>read(replayedStatus, "$.edits[0].status")).isEqualTo("UNDECIDED");
         String replayed = awaitKind("off-topic-actions", 2);
         assertThat(JsonPath.<Integer>read(replayed, "$.atMs")).isEqualTo(2000);   // 다시 보낼 때는 무시한 시각을 담는다
         awaitKind("batches", 3);
@@ -232,6 +255,8 @@ class AgendaBoardTest extends ApiTestSupport {
         int resentBatch = kinds.lastIndexOf("batches");
         assertThat(kinds.lastIndexOf("agendas")).isLessThan(resentBatch);
         assertThat(kinds.lastIndexOf("decision-edits")).isLessThan(resentBatch);
+        // 상태는 결정 내용 다음에 다시 보낸다 (agenda-status-contract.md 10장)
+        assertThat(kinds.lastIndexOf("status-edits")).isGreaterThan(kinds.lastIndexOf("decision-edits")).isLessThan(resentBatch);
     }
 
     private void start() throws Exception {

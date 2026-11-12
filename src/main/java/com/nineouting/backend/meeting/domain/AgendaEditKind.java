@@ -13,6 +13,8 @@ public enum AgendaEditKind {
     ITEM("agenda-item-edits", "edits"),
     /** 결정 내용 고치기 (REQ-126) */
     DECISION("decision-edits", "edits"),
+    /** 결정할 사항 상태 정하기: 결정, 미결, AI 판정으로 되돌리기 (agenda-status-contract.md 7.5). 결정 내용 다음에 다시 보낸다 */
+    STATUS("status-edits", "edits"),
     /** 새 안건 제안·주제 이탈 알림 무시 (REQ-091~092). 하나씩 보낸다 */
     OFF_TOPIC("off-topic-actions", null),
     /** 회의 끝내기·이어서 논의하기 (REQ-093, 095). 하나씩 보낸다 */

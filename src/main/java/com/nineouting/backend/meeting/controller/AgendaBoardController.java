@@ -7,6 +7,7 @@ import com.nineouting.backend.meeting.dto.AgendaBoardResponse;
 import com.nineouting.backend.meeting.dto.AgendaItemConfirmRequest;
 import com.nineouting.backend.meeting.dto.AgendaItemEditRequest;
 import com.nineouting.backend.meeting.dto.DecisionEditRequest;
+import com.nineouting.backend.meeting.dto.DecisionStatusRequest;
 import com.nineouting.backend.meeting.dto.LineAgendaRequest;
 import com.nineouting.backend.meeting.dto.LineAgendaResponse;
 import com.nineouting.backend.meeting.dto.TodaySummaryResponse;
@@ -80,6 +81,26 @@ public class AgendaBoardController {
                                           @Valid @RequestBody DecisionEditRequest request) {
         agendaBoardService.editDecision(meetingId, user.userId(), agendaId, decisionPointId, request.decisionText(),
                 request.evidenceSeqs());
+        return ApiResponse.ok();
+    }
+
+    /**
+     * 결정할 사항 상태 정하기 (REQ-124, 097). 사용자가 정한 상태는 AI가 전사로 바꾸지 않는다. AUTO면 AI 판정으로 돌아간다
+     */
+    @PutMapping("/agendas/{agendaId}/decision-points/{decisionPointId}/status")
+    public ApiResponse<Void> setDecisionStatus(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId,
+                                               @PathVariable Long agendaId, @PathVariable Long decisionPointId,
+                                               @Valid @RequestBody DecisionStatusRequest request) {
+        agendaBoardService.setDecisionStatus(meetingId, user.userId(), agendaId, decisionPointId, request.status());
+        return ApiResponse.ok();
+    }
+
+    /** 안건 전체를 결정으로, 미결로 (또는 AI 판정으로). 그 안건의 결정할 사항마다 상태를 정해 한 번에 보낸다 */
+    @PutMapping("/agendas/{agendaId}/decision-status")
+    public ApiResponse<Void> setAgendaDecisionStatus(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId,
+                                                     @PathVariable Long agendaId,
+                                                     @Valid @RequestBody DecisionStatusRequest request) {
+        agendaBoardService.setAgendaDecisionStatus(meetingId, user.userId(), agendaId, request.status());
         return ApiResponse.ok();
     }
 

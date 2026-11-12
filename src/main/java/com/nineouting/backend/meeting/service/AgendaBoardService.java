@@ -67,6 +67,8 @@ public class AgendaBoardService {
 
     private static final Set<String> TARGETS = Set.of("summary", "opinions", "todos");
     private static final Set<String> OPINION_KINDS = Set.of("OPINION", "EVIDENCE", "CONCERN", "QUESTION");
+    /** 사용자가 정할 수 있는 결정할 사항 상태 (agenda-status-contract.md 7.5) */
+    private static final Set<String> DECISION_STATUS_EDITS = Set.of("DECIDED", "UNDECIDED", "AUTO");
 
     private final AgendaStateRepository stateRepository;
     private final LineAgendaRepository lineAgendaRepository;
@@ -251,6 +253,49 @@ public class AgendaBoardService {
         (evidenceSeqs == null ? List.<Integer>of() : evidenceSeqs).forEach(seqs::add);
         payload.put("rev", state.nextRev());
         saveEdit(meetingId, AgendaEditKind.DECISION, agendaId + ":" + decisionPointId, payload, true);
+    }
+
+    /**
+     * 결정할 사항의 상태를 사용자가 정한다. 회의록 작성자, 진행 중. ai-service는 사용자가 정한 사항의 상태를
+     * 전사로 바꾸지 않고(statusEdited), AUTO를 받으면 AI 판정으로 돌아간다. 재시작하면 마지막 값을 다시 보낸다
+     */
+    @Transactional
+    public void setDecisionStatus(Long meetingId, Long userId, Long agendaId, Long decisionPointId, String status) {
+        access.requireWriterInProgress(meetingId, userId);
+        requireStatusEdit(status);
+        Agenda agenda = requireAgenda(meetingId, agendaId);
+        if (agenda.getDecisionPoints().stream().noneMatch(point -> point.getId().equals(decisionPointId))) {
+            throw new BusinessException(CommonErrorCode.NOT_FOUND);
+        }
+        saveStatusEdit(meetingId, lockOrCreate(meetingId), agendaId, decisionPointId, status);
+    }
+
+    /**
+     * 안건 전체를 결정으로, 미결로 (agenda-status-contract.md 7.5). ai-service는 안건 단위를 받지 않으므로
+     * 그 안건의 결정할 사항마다 하나씩 정한다 (같은 주기에 한 요청의 edits로 함께 간다)
+     */
+    @Transactional
+    public void setAgendaDecisionStatus(Long meetingId, Long userId, Long agendaId, String status) {
+        access.requireWriterInProgress(meetingId, userId);
+        requireStatusEdit(status);
+        Agenda agenda = requireAgenda(meetingId, agendaId);
+        AgendaState state = lockOrCreate(meetingId);
+        agenda.getDecisionPoints().forEach(point -> saveStatusEdit(meetingId, state, agendaId, point.getId(), status));
+    }
+
+    private void saveStatusEdit(Long meetingId, AgendaState state, Long agendaId, Long decisionPointId, String status) {
+        ObjectNode payload = jsonMapper.createObjectNode();
+        payload.put("agendaId", agendaId);
+        payload.put("decisionPointId", decisionPointId);
+        payload.put("status", status);
+        payload.put("rev", state.nextRev());
+        saveEdit(meetingId, AgendaEditKind.STATUS, agendaId + ":" + decisionPointId, payload, true);
+    }
+
+    private static void requireStatusEdit(String status) {
+        if (!DECISION_STATUS_EDITS.contains(status)) {
+            throw new BusinessException(CommonErrorCode.INVALID_INPUT, "status는 " + DECISION_STATUS_EDITS + " 중 하나입니다");
+        }
     }
 
     /** REQ-091 새 안건 제안 [무시], REQ-092 주제 이탈 알림 [확인]. 회의록 작성자, 진행 중 */

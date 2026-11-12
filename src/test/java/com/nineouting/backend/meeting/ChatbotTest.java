@@ -21,6 +21,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -46,6 +47,9 @@ class ChatbotTest extends ApiTestSupport {
 
     @Autowired
     JsonMapper jsonMapper;
+
+    @Autowired
+    TransactionTemplate transactionTemplate;
 
     @AfterEach
     void resetFake() {
@@ -121,6 +125,23 @@ class ChatbotTest extends ApiTestSupport {
         assertThat(material.getRagStatus()).isEqualTo(RagStatus.PENDING);
         assertThat(material.getRagAttempts()).isEqualTo(1);
         assertThat(material.getRagNextAttemptAt()).isAfter(LocalDateTime.now());
+
+        // RAG가 꺼진 ai-service(404)도 실패로 굳히지 않고 기다린다. 횟수를 넘겨도 마찬가지
+        FakeAiService.respondWith(404);
+        for (int i = 0; i < 6; i++) {
+            transactionTemplate.executeWithoutResult(status -> materialRepository.findById(materialId).orElseThrow()
+                    .ragRetryLater("unavailable", LocalDateTime.now().minusSeconds(1)));
+            materialRagSync.run();
+        }
+        material = materialRepository.findById(materialId).orElseThrow();
+        assertThat(material.getRagStatus()).isEqualTo(RagStatus.PENDING);
+
+        // 켜지면 보낸다
+        FakeAiService.respondWith(200);
+        transactionTemplate.executeWithoutResult(status -> materialRepository.findById(materialId).orElseThrow()
+                .ragRetryLater("unavailable", LocalDateTime.now().minusSeconds(1)));
+        materialRagSync.run();
+        assertThat(materialRepository.findById(materialId).orElseThrow().getRagStatus()).isEqualTo(RagStatus.ACCEPTED);
     }
 
     @Test

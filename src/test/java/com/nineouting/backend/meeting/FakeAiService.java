@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * 테스트용 가짜 ai-service. 받은 요청(성공한 것만)을 쌓아 두고, 정한 대로 응답한다.
@@ -25,6 +26,12 @@ public final class FakeAiService {
     /** 0보다 크면 다음 요청 한 번을 이 상태 코드로 거절한다 (kind별: events / batches) */
     private static final Map<String, AtomicInteger> REJECT_ONCE = Map.of(
             "events", new AtomicInteger(), "batches", new AtomicInteger());
+    /** REQ-185 챗봇 답 (POST /internal/rag/chat). 상태 코드가 200이 아니면 그 코드로 거절한다 */
+    private static final AtomicReference<String> CHAT_ANSWER = new AtomicReference<>(
+            "{\"status\":\"no_result\",\"basis\":null,\"answer\":\"회의 자료에서 찾을 수 없어요\",\"citations\":[],\"errorCode\":null}");
+    private static final AtomicInteger CHAT_STATUS = new AtomicInteger(200);
+    /** minutes-service 대신: 폴더 번호 → 작성 완료 회의록 번호 (GET /internal/minutes/rag-docs) */
+    private static final Map<Long, String> MINUTES_DOCS = new java.util.concurrent.ConcurrentHashMap<>();
 
     static {
         try {
@@ -57,6 +64,21 @@ public final class FakeAiService {
         REJECT_ONCE.get(kind).set(status);
     }
 
+    public static void chatAnswer(int status, String body) {
+        CHAT_STATUS.set(status);
+        CHAT_ANSWER.set(body);
+    }
+
+    public static void minutesDocs(Long folderId, String idsJson) {
+        MINUTES_DOCS.put(folderId, idsJson);
+    }
+
+    /** RAG 요청 중 경로가 path로 시작하는 것 (메서드와 함께: "POST /internal/rag/documents") */
+    public static List<String> receivedRag(String methodAndPath) {
+        return RECEIVED.stream().filter(received -> received.path().startsWith(methodAndPath))
+                .map(Received::body).toList();
+    }
+
     /** 이 회의로 받은 요청 본문. kind: events / batches */
     public static List<String> received(Long meetingId, String kind) {
         String path = "/internal/meetings/" + meetingId + "/" + kind;
@@ -73,6 +95,10 @@ public final class FakeAiService {
     private static void handle(HttpExchange exchange) throws IOException {
         String path = exchange.getRequestURI().getPath();
         String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        if (path.startsWith("/internal/rag/") || path.startsWith("/internal/minutes/")) {
+            handleRag(exchange, path, body);
+            return;
+        }
         String kind = path.substring(path.lastIndexOf('/') + 1);
         int reject = REJECT_ONCE.containsKey(kind) ? REJECT_ONCE.get(kind).getAndSet(0) : 0;
         if (reject > 0) {
@@ -89,6 +115,28 @@ public final class FakeAiService {
             RECEIVED.add(new Received(path, body));
         }
         respond(exchange, status, "");
+    }
+
+    private static void handleRag(HttpExchange exchange, String path, String body) throws IOException {
+        String method = exchange.getRequestMethod();
+        if (path.equals("/internal/minutes/rag-docs")) {
+            String query = exchange.getRequestURI().getQuery();
+            Long folderId = Long.valueOf(query.substring(query.indexOf('=') + 1));
+            respond(exchange, 200, MINUTES_DOCS.getOrDefault(folderId, "[]"));
+            return;
+        }
+        int status = path.equals("/internal/rag/chat") ? CHAT_STATUS.get() : STATUS.get();
+        if (status >= 300) {
+            respond(exchange, status, "{\"error\":\"NOT_READY\"}");
+            return;
+        }
+        RECEIVED.add(new Received(method + " " + path, body));
+        switch (method + " " + path.replaceAll("/\\d+$", "/{id}")) {
+            case "POST /internal/rag/documents" -> respond(exchange, 202, "{\"status\":\"accepted\"}");
+            case "POST /internal/rag/chat" -> respond(exchange, 200, CHAT_ANSWER.get());
+            case "GET /internal/rag/documents/upload/{id}" -> respond(exchange, 404, "{\"error\":\"NOT_FOUND\"}");
+            default -> respond(exchange, 204, "");
+        }
     }
 
     private static void respond(HttpExchange exchange, int status, String body) throws IOException {

@@ -55,6 +55,26 @@ public class MeetingMaterial {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    /** S3가 파일마다 주는 ETag (따옴표를 뗀 값). 검색용 저장소에 넣을 때의 버전(docVersion) */
+    @Column(length = 200)
+    private String etag;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "rag_status", length = 20)
+    private RagStatus ragStatus;
+
+    @Column(name = "rag_error_code", length = 40)
+    private String ragErrorCode;
+
+    @Column(name = "rag_attempts", nullable = false)
+    private int ragAttempts;
+
+    @Column(name = "rag_next_attempt_at")
+    private LocalDateTime ragNextAttemptAt;
+
+    @Column(name = "rag_sent_at")
+    private LocalDateTime ragSentAt;
+
     public MeetingMaterial(Long meetingId, String fileName, String contentType, long sizeBytes, String storageKey,
                            Long uploadedBy, LocalDateTime now) {
         this.meetingId = meetingId;
@@ -72,8 +92,52 @@ public class MeetingMaterial {
     }
 
     /** 실제로 올라간 크기로 바꾸고 목록에 보이게 한다 */
-    public void ready(long actualSize) {
+    public void ready(long actualSize, String etag, LocalDateTime now) {
         this.sizeBytes = actualSize;
         this.status = Status.READY;
+        this.etag = etag;
+        ragPending(now);
+    }
+
+    // ---- 검색용 저장소 (REQ-187) ----
+
+    /** 처음부터 다시 보낸다 */
+    public void ragPending(LocalDateTime now) {
+        this.ragStatus = RagStatus.PENDING;
+        this.ragErrorCode = null;
+        this.ragAttempts = 0;
+        this.ragNextAttemptAt = now;
+    }
+
+    /** 배포 전에 올라간 자료는 ETag가 없어 보낼 때 채운다 */
+    public void keepEtag(String etag) {
+        this.etag = etag;
+    }
+
+    public void ragAccepted(LocalDateTime now) {
+        this.ragStatus = RagStatus.ACCEPTED;
+        this.ragSentAt = now;
+    }
+
+    public void ragReady() {
+        this.ragStatus = RagStatus.READY;
+        this.ragErrorCode = null;
+    }
+
+    public void ragFailed(String errorCode) {
+        this.ragStatus = RagStatus.FAILED;
+        this.ragErrorCode = errorCode;
+    }
+
+    /** 다시 보낼 일. 횟수를 넘으면 실패로 둔다 */
+    public void ragRetry(String errorCode, LocalDateTime nextAttemptAt, int maxAttempts) {
+        this.ragAttempts++;
+        if (ragAttempts >= maxAttempts) {
+            ragFailed(errorCode);
+            return;
+        }
+        this.ragStatus = RagStatus.PENDING;
+        this.ragErrorCode = errorCode;
+        this.ragNextAttemptAt = nextAttemptAt;
     }
 }

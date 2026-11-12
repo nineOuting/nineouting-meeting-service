@@ -1,0 +1,104 @@
+package com.nineouting.backend.meeting.client;
+
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+import tools.jackson.databind.JsonNode;
+
+/**
+ * ai-service RAG 호출 (RAG 명세 2026-11-12, 회의 중 챗봇 명세 v0.2). 서버 간 인증은 지금 없다 (내부망만).
+ * 400, 409는 다시 보내도 소용없는 거절(AiRejectedException), 408, 429, 5xx, 연결 실패는 다시 보낼 일(AiServiceException).
+ * 질문, 답, 회의 내용은 로그에 남기지 않는다 (챗봇 명세 7장).
+ */
+public class RagClient {
+
+    public static final String REQUEST_ID_HEADER = "X-Request-Id";
+    private static final String PREFIX = "/internal/rag";
+
+    private final RestClient ingestClient;
+    private final RestClient chatClient;
+
+    public RagClient(RestClient ingestClient, RestClient chatClient) {
+        this.ingestClient = ingestClient;
+        this.chatClient = chatClient;
+    }
+
+    /** 문서 넣기. 응답의 status(accepted, ignored)를 돌려준다 */
+    public String ingest(Object body) {
+        JsonNode response = call(() -> ingestClient.post().uri(PREFIX + "/documents")
+                .header(REQUEST_ID_HEADER, requestId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(JsonNode.class));
+        return response == null ? "accepted" : response.path("status").asString("accepted");
+    }
+
+    /** 상태 조회. 넣은 적 없으면 빈 값 */
+    public Optional<JsonNode> status(String sourceType, Long docId) {
+        try {
+            return Optional.ofNullable(call(() -> ingestClient.get()
+                    .uri(PREFIX + "/documents/{sourceType}/{docId}", sourceType, docId)
+                    .header(REQUEST_ID_HEADER, requestId())
+                    .retrieve()
+                    .body(JsonNode.class)));
+        } catch (AiRejectedException e) {
+            if (e.getCause() instanceof HttpClientErrorException.NotFound) {
+                return Optional.empty();
+            }
+            throw e;
+        }
+    }
+
+    /** 문서 지우기 (없는 문서여도 204) */
+    public void delete(String sourceType, Long docId) {
+        call(() -> ingestClient.delete()
+                .uri(PREFIX + "/documents/{sourceType}/{docId}", sourceType, docId)
+                .header(REQUEST_ID_HEADER, requestId())
+                .retrieve()
+                .toBodilessEntity());
+    }
+
+    /** 회의 중 챗봇 질문 하나. 최대 60초 걸린다 */
+    public JsonNode chat(Object body) {
+        return call(() -> chatClient.post().uri(PREFIX + "/chat")
+                .header(REQUEST_ID_HEADER, requestId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(JsonNode.class));
+    }
+
+    private static String requestId() {
+        return UUID.randomUUID().toString();
+    }
+
+    private static <T> T call(java.util.function.Supplier<T> request) {
+        try {
+            return request.get();
+        } catch (HttpClientErrorException e) {
+            int status = e.getStatusCode().value();
+            String message = "ai-service RAG가 거절했습니다: " + e.getStatusCode() + " " + errorOf(e);
+            if (status == HttpStatus.REQUEST_TIMEOUT.value() || status == HttpStatus.TOO_MANY_REQUESTS.value()) {
+                throw new AiServiceException(message, e);
+            }
+            throw new AiRejectedException(message, e);
+        } catch (RestClientException e) {
+            throw new AiServiceException("ai-service RAG 호출 실패: " + e.getMessage(), e);
+        }
+    }
+
+    /** 오류 본문의 error 코드만 (detail에는 사용자 글이 들어갈 수 있어 남기지 않는다) */
+    private static String errorOf(HttpClientErrorException e) {
+        try {
+            JsonNode body = e.getResponseBodyAs(JsonNode.class);
+            return body == null ? "" : body.path("error").asString("");
+        } catch (RuntimeException ignored) {
+            return "";
+        }
+    }
+}

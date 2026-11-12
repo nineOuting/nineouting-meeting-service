@@ -1,12 +1,12 @@
 package com.nineouting.backend.meeting.service;
 
-import com.nineouting.backend.meeting.domain.MeetingMaterial;
 import com.nineouting.backend.meeting.repository.AgendaEditRepository;
 import com.nineouting.backend.meeting.repository.AgendaRepository;
 import com.nineouting.backend.meeting.repository.AgendaStateRepository;
 import com.nineouting.backend.meeting.repository.AiBatchRepository;
 import com.nineouting.backend.meeting.repository.AiFeedRepository;
 import com.nineouting.backend.meeting.repository.AiFeedbackRepository;
+import com.nineouting.backend.meeting.repository.ChatMessageRepository;
 import com.nineouting.backend.meeting.repository.ConnectionTicketRepository;
 import com.nineouting.backend.meeting.repository.LineAgendaRepository;
 import com.nineouting.backend.meeting.repository.LiveSummaryRepository;
@@ -43,6 +43,8 @@ public class MeetingPurger {
     private final AiFeedbackRepository aiFeedbackRepository;
     private final MeetingMaterialRepository materialRepository;
     private final MaterialStorage materialStorage;
+    private final MaterialRagSync materialRagSync;
+    private final ChatMessageRepository chatMessageRepository;
 
     public void purge(Collection<Long> meetingIds) {
         if (meetingIds.isEmpty()) {
@@ -60,9 +62,12 @@ public class MeetingPurger {
         liveSummaryRepository.deleteByMeetingIdIn(meetingIds);
         aiFeedbackRepository.deleteByMeetingIdIn(meetingIds);
         // 사전 자료 파일(S3)도 지운다 (REQ-067). 실패해도 기록만 남기고 나머지는 지운다
-        materialRepository.findByMeetingIdIn(meetingIds).stream()
-                .map(MeetingMaterial::getStorageKey)
-                .forEach(materialStorage::deleteQuietly);
+        // REQ-187 챗봇 검색용 저장소에서도 지운다
+        materialRepository.findByMeetingIdIn(meetingIds).forEach(material -> {
+            materialStorage.deleteQuietly(material.getStorageKey());
+            materialRagSync.deleteQuietly(material.getId());
+        });
+        chatMessageRepository.deleteByMeetingIdIn(meetingIds);
         materialRepository.deleteByMeetingIdIn(meetingIds);
         attendeeRepository.deleteByMeetingIdIn(meetingIds);
         meetingRepository.deleteAllByIdIn(meetingIds);

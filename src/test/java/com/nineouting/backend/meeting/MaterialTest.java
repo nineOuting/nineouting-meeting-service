@@ -74,7 +74,7 @@ class MaterialTest extends ApiTestSupport {
         String key = materialRepository.findById(materialId).orElseThrow().getStorageKey();
         call(attendee, delete(path + "/" + materialId), null).andExpect(status().isOk());
         call(viewer, get(path), null).andExpect(jsonPath("$.data.length()").value(0));
-        assertThat(materialStorage.size(key)).isEmpty();
+        assertThat(materialStorage.head(key)).isEmpty();
     }
 
     @Test
@@ -121,7 +121,7 @@ class MaterialTest extends ApiTestSupport {
         call(owner, delete("/api/meetings/" + meetingId), null).andExpect(status().isOk());
         call(owner, delete("/api/meetings/" + meetingId + "/purge"), null).andExpect(status().isOk());
 
-        assertThat(materialStorage.size(key)).isEmpty();
+        assertThat(materialStorage.head(key)).isEmpty();
         assertThat(materialRepository.findById(materialId)).isEmpty();
     }
 

@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * REQ-067 회의 사전 자료 (MSG-067). 참석자가 올리고, 회의를 볼 수 있는 사람은 누구나 내려받는다.
  * 지우기는 올린 사람과 회의를 만든 사람. 파일 하나 50MB, 회의마다 20개까지.
+ * REQ-187 다 올라간 자료는 챗봇 검색용 저장소에 넣고, 목록에 검색 상태를 보여 준다.
  */
 @Service
 @RequiredArgsConstructor
@@ -39,6 +40,7 @@ public class MaterialService {
     private final MaterialStorage storage;
     private final MeetingAccess access;
     private final UserClient userClient;
+    private final MaterialRagSync ragSync;
     private final Clock clock;
 
     /** 업로드 주소를 준다. 브라우저가 다 올린 뒤 complete를 불러야 목록에 보인다 */
@@ -71,14 +73,15 @@ public class MaterialService {
             throw new BusinessException(CommonErrorCode.FORBIDDEN);
         }
         if (!material.isReady()) {
-            long size = storage.size(material.getStorageKey())
+            MaterialStorage.StoredFile file = storage.head(material.getStorageKey())
                     .orElseThrow(() -> new BusinessException(MeetingErrorCode.MATERIAL_NOT_UPLOADED));
-            if (size > MAX_BYTES) {
+            if (file.size() > MAX_BYTES) {
                 storage.deleteQuietly(material.getStorageKey());
                 repository.delete(material);
                 throw new BusinessException(MeetingErrorCode.MATERIAL_TOO_LARGE);
             }
-            material.ready(size);
+            // REQ-187 챗봇 검색용 저장소에 넣을 차례로 둔다 (MaterialRagSync가 보낸다)
+            material.ready(file.size(), file.etag(), now());
         }
         return response(material, users(List.of(material), meeting.getWorkspaceId()));
     }
@@ -101,6 +104,7 @@ public class MaterialService {
         }
         storage.deleteQuietly(material.getStorageKey());
         repository.delete(material);
+        ragSync.deleteQuietly(material.getId());
     }
 
     private MeetingMaterial materialOf(Long meetingId, Long materialId) {
@@ -121,7 +125,8 @@ public class MaterialService {
     private MaterialResponse response(MeetingMaterial material, Map<Long, UserSummary> users) {
         return new MaterialResponse(material.getId(), material.getFileName(), material.getContentType(),
                 material.getSizeBytes(), PersonResponse.of(material.getUploadedBy(), users.get(material.getUploadedBy())),
-                material.getCreatedAt(), storage.downloadUrl(material.getStorageKey(), material.getFileName()));
+                material.getCreatedAt(), storage.downloadUrl(material.getStorageKey(), material.getFileName()),
+                ragSync.searchStatus(material));
     }
 
     private LocalDateTime now() {

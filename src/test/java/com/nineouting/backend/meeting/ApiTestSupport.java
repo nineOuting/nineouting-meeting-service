@@ -79,6 +79,9 @@ public abstract class ApiTestSupport {
     @DynamicPropertySource
     static void fakeAiService(DynamicPropertyRegistry registry) {
         registry.add("nineouting.meeting.ai.base-url", FakeAiService::baseUrl);
+        registry.add("nineouting.meeting.rag.minutes-service-url", FakeAiService::baseUrl);
+        // 테스트가 직접 MaterialRagSync.run()을 부른다 (뜰 때 한 번 도는 것 말고는 돌지 않게)
+        registry.add("nineouting.meeting.rag.send-interval", () -> "1h");
     }
 
     @BeforeEach

@@ -11,7 +11,8 @@ import tools.jackson.databind.JsonNode;
 
 /**
  * ai-service RAG 호출 (RAG 명세 2026-11-12, 회의 중 챗봇 명세 v0.2). 서버 간 인증은 지금 없다 (내부망만).
- * 400, 409는 다시 보내도 소용없는 거절(AiRejectedException), 408, 429, 5xx, 연결 실패는 다시 보낼 일(AiServiceException).
+ * 400, 409는 다시 보내도 소용없는 거절(AiRejectedException), 그 밖(404, 408, 429, 5xx, 연결 실패)은 다시 보낼 일
+ * (AiServiceException). 404는 ai-service에 RAG가 꺼져 있을 때다 (RAG_DATABASE_URL 없음). 켜지면 다시 보낸다.
  * 질문, 답, 회의 내용은 로그에 남기지 않는다 (챗봇 명세 7장).
  */
 public class RagClient {
@@ -46,7 +47,7 @@ public class RagClient {
                     .header(REQUEST_ID_HEADER, requestId())
                     .retrieve()
                     .body(JsonNode.class)));
-        } catch (AiRejectedException e) {
+        } catch (AiServiceException e) {
             if (e.getCause() instanceof HttpClientErrorException.NotFound) {
                 return Optional.empty();
             }
@@ -83,10 +84,10 @@ public class RagClient {
         } catch (HttpClientErrorException e) {
             int status = e.getStatusCode().value();
             String message = "ai-service RAG가 거절했습니다: " + e.getStatusCode() + " " + errorOf(e);
-            if (status == HttpStatus.REQUEST_TIMEOUT.value() || status == HttpStatus.TOO_MANY_REQUESTS.value()) {
-                throw new AiServiceException(message, e);
+            if (status == HttpStatus.BAD_REQUEST.value() || status == HttpStatus.CONFLICT.value()) {
+                throw new AiRejectedException(message, e);
             }
-            throw new AiRejectedException(message, e);
+            throw new AiServiceException(message, e);
         } catch (RestClientException e) {
             throw new AiServiceException("ai-service RAG 호출 실패: " + e.getMessage(), e);
         }

@@ -29,7 +29,8 @@ import tools.jackson.databind.JsonNode;
 /**
  * REQ-187 사전 자료를 ai-service 검색용 저장소에 넣는다 (docs/services/rag-chatbot.md 3장, RAG 명세 2026-11-12).
  * 보관함 표 없이 자료 행의 rag_status로 보내고 다시 보낸다. 여러 파드가 같은 자료를 보내지 않게 행을 잠근다.
- * 사용자가 고칠 수 없는 실패(글이 없음, 받지 않는 형식, 암호, 너무 큼)는 다시 보내지 않는다.
+ * 사용자가 고칠 수 없는 실패(글이 없음, 받지 않는 형식, 암호, 너무 큼)와 거절(400, 409)은 다시 보내지 않는다.
+ * ai-service가 안 되거나 RAG가 꺼져 있으면(404) 실패로 굳히지 않고 간격을 늘려(최대 약 30분) 계속 다시 보낸다.
  */
 @Slf4j
 @Component
@@ -152,8 +153,8 @@ public class MaterialRagSync {
             material.ragFailed(REJECTED);
             log.warn("ai-service가 사전 자료 넣기를 거절했습니다 (materialId={}): {}", material.getId(), e.getMessage());
         } catch (AiServiceException e) {
-            material.ragRetry(UNAVAILABLE, now.plus(backoff(material)), properties.maxAttempts());
-            log.warn("사전 자료를 검색용 저장소에 보내지 못해 다시 보냅니다 (materialId={}, {}회째): {}",
+            material.ragRetryLater(UNAVAILABLE, now.plus(backoff(material)));
+            log.warn("사전 자료를 검색용 저장소에 보내지 못해 나중에 다시 보냅니다 (materialId={}, {}회째): {}",
                     material.getId(), material.getRagAttempts(), e.getMessage());
         }
         return true;

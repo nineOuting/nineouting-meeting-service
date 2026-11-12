@@ -183,23 +183,49 @@ class AgendaBoardTest extends ApiTestSupport {
         call(writer, post("/api/meetings/" + meetingId + "/finish"), null).andExpect(status().isOk());
         // 마지막 보드는 회의가 끝난 뒤에 온다
         internalPut("agenda-board", board(600, "UNDECIDED", null).replace("\"todaySummary\":null",
-                "\"todaySummary\":{\"requestRev\":null,\"final\":true,\"agendas\":[{\"agendaId\":%d,\"status\":\"UNDECIDED\",\"statusReason\":null,\"summary\":[],\"opinions\":[],\"todos\":[]}]}"
-                        .formatted(agendaId))).andExpect(status().isNoContent());
+                ("\"todaySummary\":{\"requestRev\":null,\"final\":true,\"agendas\":[{\"agendaId\":%d,\"status\":\"UNDECIDED\",\"statusReason\":null,"
+                        + "\"decisionPoints\":[{\"decisionPointId\":%d,\"status\":\"UNDECIDED\",\"decisionText\":\"못 정함\",\"evidenceSeqs\":[1],\"edited\":false,\"needsCheck\":false}],"
+                        + "\"summary\":[{\"id\":\"k-1\",\"text\":\"배포 이야기\",\"evidenceSeqs\":[1],\"edited\":false,\"needsCheck\":false},"
+                        + "{\"id\":\"k-2\",\"text\":\"QA 이야기\",\"evidenceSeqs\":[2],\"edited\":false,\"needsCheck\":false}],"
+                        + "\"opinions\":[],\"todos\":[]}]}")
+                        .formatted(agendaId, decisionPointId))).andExpect(status().isNoContent());
 
         call(attendee, get("/api/meetings/" + meetingId + "/today-summary"), null)
                 .andExpect(jsonPath("$.data.final").value(true))
                 .andExpect(jsonPath("$.data.todaySummary.agendas[0].status").value("UNDECIDED"));
-        String revised = "{\"agendas\":[{\"agendaId\":%d,\"status\":\"UNDECIDED\",\"statusReason\":null,\"summary\":[],\"opinions\":[],"
-                .formatted(agendaId) + "\"todos\":[{\"id\":\"u-1\",\"task\":\"회의실 예약\",\"evidenceSeqs\":[],\"edited\":true}]}]}";
+        // 결정 내용과 요약 한 줄(k-1)을 고치고, k-2는 그대로, 할 일은 새로 넣는다. 근거를 바꿔 보내도 저장된 근거를 쓴다
+        String revised = ("{\"agendas\":[{\"agendaId\":%d,\"status\":\"UNDECIDED\",\"statusReason\":null,"
+                + "\"decisionPoints\":[{\"decisionPointId\":%d,\"status\":\"DECIDED\",\"decisionText\":\"30일 배포\",\"evidenceSeqs\":[9]}],"
+                + "\"summary\":[{\"id\":\"k-1\",\"text\":\"배포는 30일\",\"evidenceSeqs\":[]},"
+                + "{\"id\":\"k-2\",\"text\":\"QA 이야기\",\"evidenceSeqs\":[2],\"edited\":false,\"needsCheck\":false}],"
+                + "\"opinions\":[],\"todos\":[{\"task\":\"회의실 예약\",\"evidenceSeqs\":[5]}]}]}").formatted(agendaId, decisionPointId);
         call(attendee, put("/api/meetings/" + meetingId + "/today-summary"), revised).andExpect(status().isForbidden());
-        call(writer, put("/api/meetings/" + meetingId + "/today-summary"), revised).andExpect(status().isOk());
+        call(writer, put("/api/meetings/" + meetingId + "/today-summary"), revised.replace("\"agendaId\":" + agendaId, "\"agendaId\":999999"))
+                .andExpect(status().isBadRequest());
+        call(writer, put("/api/meetings/" + meetingId + "/today-summary"), revised).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.todaySummary.agendas[0].decisionPoints[0].edited").value(true))
+                .andExpect(jsonPath("$.data.todaySummary.agendas[0].decisionPoints[0].evidenceSeqs").value(contains(1)))
+                .andExpect(jsonPath("$.data.todaySummary.agendas[0].summary[0].edited").value(true))
+                .andExpect(jsonPath("$.data.todaySummary.agendas[0].summary[0].evidenceSeqs").value(contains(1)))
+                .andExpect(jsonPath("$.data.todaySummary.agendas[0].summary[1].edited").value(false))
+                .andExpect(jsonPath("$.data.todaySummary.agendas[0].todos[0].id").value("u-1"))
+                .andExpect(jsonPath("$.data.todaySummary.agendas[0].todos[0].edited").value(true))
+                .andExpect(jsonPath("$.data.todaySummary.agendas[0].todos[0].evidenceSeqs").isEmpty());
+        // 다시 고쳐도 한 번 켜진 표시는 남고, 앞서 넣은 u-1은 그대로 두고 새 항목은 u-2가 된다
+        String marked = call(writer, get("/api/meetings/" + meetingId + "/today-summary"), null).andReturn().getResponse()
+                .getContentAsString();
+        String again = JsonPath.parse((Object) JsonPath.read(marked, "$.data.todaySummary")).jsonString()
+                .replace("\"todos\":[", "\"todos\":[{\"task\":\"자료 공유\"},");
+        call(writer, put("/api/meetings/" + meetingId + "/today-summary"), again).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.todaySummary.agendas[0].summary[0].edited").value(true))
+                .andExpect(jsonPath("$.data.todaySummary.agendas[0].todos[*].id").value(contains("u-2", "u-1")));
 
         mockMvc.perform(get("/internal/meetings/" + meetingId + "/draft-source"))
                 .andExpect(jsonPath("$.data.ready").value(true))
                 .andExpect(jsonPath("$.data.agendas[0].title").value("배포 일정"))
                 .andExpect(jsonPath("$.data.agendas[0].decisionPoints[*].text").value(contains("배포 날짜", "QA 담당")))
                 .andExpect(jsonPath("$.data.agendas[0].decisionPoints[1].position").value(2))
-                .andExpect(jsonPath("$.data.summary.agendas[0].todos[0].task").value("회의실 예약"))
+                .andExpect(jsonPath("$.data.summary.agendas[0].todos[*].task").value(contains("자료 공유", "회의실 예약")))
                 // 확정된 줄만 (말하는 중인 줄 3은 빠진다)
                 .andExpect(jsonPath("$.data.transcripts[*].seq").value(contains(1, 2)))
                 .andExpect(jsonPath("$.data.transcripts[0].text").value("테라폼으로 올리죠"))

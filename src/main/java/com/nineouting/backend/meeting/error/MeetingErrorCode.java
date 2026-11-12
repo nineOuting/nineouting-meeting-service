@@ -34,6 +34,7 @@ public enum MeetingErrorCode implements ErrorCode {
     TRANSCRIPT_NOT_EDITABLE(HttpStatus.CONFLICT, "아직 확정되지 않았거나 지운 줄은 고칠 수 없습니다"),
     END_NOT_REQUESTED(HttpStatus.CONFLICT, "회의 끝내기를 누르지 않았습니다"),
     MEETING_NOT_FINISHED(HttpStatus.CONFLICT, "끝난 회의만 할 수 있습니다"),
+    TODAY_SUMMARY_NOT_READY(HttpStatus.CONFLICT, "오늘 회의 요약이 아직 오지 않았습니다. 잠시 후 다시 시도해 주세요"),
     MATERIAL_TOO_LARGE(HttpStatus.BAD_REQUEST, "50MB 이하 파일만 올릴 수 있습니다"),
     MATERIAL_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "사전 자료는 회의마다 20개까지 올릴 수 있습니다"),
     MATERIAL_NOT_UPLOADED(HttpStatus.CONFLICT, "파일이 아직 올라가지 않았습니다. 다시 올려 주세요"),

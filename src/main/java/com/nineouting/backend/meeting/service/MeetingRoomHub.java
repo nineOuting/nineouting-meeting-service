@@ -1,6 +1,7 @@
 package com.nineouting.backend.meeting.service;
 
 import com.nineouting.backend.meeting.dto.RoomMessage;
+import jakarta.websocket.Session;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.adapter.NativeWebSocketSession;
 import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import tools.jackson.databind.json.JsonMapper;
@@ -31,6 +33,12 @@ public class MeetingRoomHub extends TextWebSocketHandler {
     /** 느린 브라우저 하나 때문에 다른 참석자 전송이 밀리지 않게 한다 */
     private static final int SEND_TIME_LIMIT_MS = 5_000;
     private static final int BUFFER_SIZE_LIMIT = 512 * 1024;
+    /**
+     * Tomcat이 막힌 연결에 보내기를 기다리는 시간 (기본 20초). 보내는 스레드를 다른 회의와 나눠 쓰므로 짧게 둔다.
+     * 넘으면 보내기가 실패하고 그 연결을 정리한다 (브라우저는 다시 연결하며 놓친 것을 다시 읽는다)
+     */
+    static final String BLOCKING_SEND_TIMEOUT = "org.apache.tomcat.websocket.BLOCKING_SEND_TIMEOUT";
+    static final long BLOCKING_SEND_TIMEOUT_MS = 5_000L;
 
     private final JsonMapper jsonMapper;
     private final Map<Long, Set<WebSocketSession>> rooms = new ConcurrentHashMap<>();
@@ -40,6 +48,12 @@ public class MeetingRoomHub extends TextWebSocketHandler {
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         Long meetingId = (Long) session.getAttributes().get(MEETING_ID);
+        if (session instanceof NativeWebSocketSession nativeSession) {
+            Session tomcat = nativeSession.getNativeSession(Session.class);
+            if (tomcat != null) {
+                tomcat.getUserProperties().put(BLOCKING_SEND_TIMEOUT, BLOCKING_SEND_TIMEOUT_MS);
+            }
+        }
         WebSocketSession decorated = new ConcurrentWebSocketSessionDecorator(session, SEND_TIME_LIMIT_MS,
                 BUFFER_SIZE_LIMIT);
         rooms.computeIfAbsent(meetingId, id -> ConcurrentHashMap.newKeySet()).add(decorated);

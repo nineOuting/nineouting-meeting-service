@@ -21,6 +21,7 @@ import com.nineouting.backend.meeting.error.MeetingErrorCode;
 import com.nineouting.backend.meeting.repository.AgendaRepository;
 import com.nineouting.backend.meeting.repository.AgendaStateRepository;
 import com.nineouting.backend.meeting.repository.ChatMessageRepository;
+import com.nineouting.backend.meeting.repository.LiveSummaryRepository;
 import com.nineouting.backend.meeting.repository.MeetingMaterialRepository;
 import com.nineouting.backend.meeting.repository.TranscriptLineRepository;
 import java.time.Clock;
@@ -46,7 +47,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 /**
  * REQ-185, 186 회의 중 챗봇 (docs/services/rag-chatbot.md 4장, ai-service docs/api/rag-chat-contract.md).
- * 찾는 문서: 이 회의의 사전 자료 + 같은 폴더의 작성 완료 회의록. 진행 중인 회의는 안건 보드와 최근 전사 줄로 넘긴다.
+ * 찾는 문서: 이 회의의 사전 자료 + 같은 폴더의 작성 완료 회의록. 진행 중인 회의는 안건 보드, 최근 전사 줄, 실시간 요약으로 넘긴다.
  * 대화 기록은 사용자마다, 회의마다 따로 저장하고 질문할 때 최근 20개를 넘긴다. 실패한 질문은 저장하지 않는다.
  * 질문, 답, 회의 내용은 로그에 남기지 않는다 (챗봇 명세 7장).
  */
@@ -61,6 +62,7 @@ public class ChatService {
     static final int MAX_AGENDAS = 50;
     static final int MAX_LINES = 500;
     static final int MAX_LINE_CHARS = 30_000;
+    static final int MAX_USER_NAME = 100;
     /** 최근 전사 줄 범위 (챗봇 명세 3.1 권장 10분) */
     static final long RECENT_MS = 10 * 60 * 1000L;
     private static final String UNAVAILABLE = "unavailable";
@@ -72,6 +74,7 @@ public class ChatService {
     private final AgendaRepository agendaRepository;
     private final AgendaStateRepository stateRepository;
     private final TranscriptLineRepository lineRepository;
+    private final LiveSummaryRepository liveSummaryRepository;
     private final MinutesDocsClient minutesDocsClient;
     private final RagClient ragClient;
     private final UserClient userClient;
@@ -136,7 +139,7 @@ public class ChatService {
         body.put("userId", userId);
         String userName = userName(userId, meeting.getWorkspaceId());
         if (userName != null) {
-            body.put("userName", userName);
+            body.put("userName", userName.length() > MAX_USER_NAME ? userName.substring(0, MAX_USER_NAME) : userName);
         }
         body.put("query", query);
         body.set("history", historyForAi(meetingId, userId));
@@ -147,6 +150,7 @@ public class ChatService {
         }
         body.set("liveAgendas", liveAgendas(meetingId, state, currentAgendaId));
         body.set("recentLines", recentLines(meetingId));
+        body.set("liveSummary", liveSummary(meetingId));
         List<Long> materialIds = materialRepository.findByMeetingIdAndStatusOrderById(meetingId,
                 MeetingMaterial.Status.READY).stream().map(MeetingMaterial::getId).toList();
         return new Prepared(query, meeting.getFolderId(), materialIds, body);
@@ -246,6 +250,18 @@ public class ChatService {
             }
         });
         return result;
+    }
+
+    /**
+     * 마지막으로 받은 실시간 요약의 summary[] 그대로 (챗봇 명세 v0.5 3.6). 안건 보드에 들어가지 않고 최근 전사 줄 밖인
+     * 회의 초반 이야기를 찾는 데 쓴다. 받을 때 이미 200개, 항목 글 2,000자로 막아서 자르지 않는다. 없으면 빈 배열
+     */
+    private ArrayNode liveSummary(Long meetingId) {
+        return liveSummaryRepository.findById(meetingId)
+                .map(saved -> jsonMapper.readTree(saved.getSummary()))
+                .filter(JsonNode::isArray)
+                .map(ArrayNode.class::cast)
+                .orElseGet(jsonMapper::createArrayNode);
     }
 
     /** 워크스페이스 프로필 이름 ("내 할 일" 같은 질문에 쓴다). 못 가져오면 넘기지 않는다 */

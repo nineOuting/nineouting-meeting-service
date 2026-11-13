@@ -3,6 +3,7 @@ package com.nineouting.backend.meeting;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -163,6 +164,14 @@ class ChatbotTest extends ApiTestSupport {
         call(owner, post("/api/meetings/" + meetingId + "/start"), null).andExpect(status().isOk());
         call(viewer, post(path), query("예산 얼마야?")).andExpect(status().isForbidden());
 
+        // 실시간 요약을 받아 두면 질문할 때 summary[] 그대로 넘긴다 (챗봇 명세 v0.5)
+        mockMvc.perform(put("/internal/meetings/" + meetingId + "/live-summary").contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"schemaVersion":"0.1","meetingId":"%d","version":1,"atMs":134200,"final":false,
+                                 "summary":[{"text":"버튼 색은 접근성 기준에 맞춰 다시 정하자는 의견이 나옴.","topic":"버튼 색",
+                                             "evidence":[{"start":91.92,"end":117.6}]}]}""".formatted(meetingId)))
+                .andExpect(status().isNoContent());
+
         FakeAiService.chatAnswer(200, ANSWERED);
         call(owner, post(path), query("  시안 언제까지 다시 보기로 했지?  "))
                 .andExpect(status().isOk())
@@ -179,6 +188,9 @@ class ChatbotTest extends ApiTestSupport {
         assertThat(first.path("userName").asString()).isEqualTo("user" + owner);
         assertThat(first.path("query").asString()).isEqualTo("시안 언제까지 다시 보기로 했지?");
         assertThat(first.path("history").size()).isZero();
+        assertThat(first.path("liveSummary").size()).isEqualTo(1);
+        assertThat(first.path("liveSummary").get(0).path("topic").asString()).isEqualTo("버튼 색");
+        assertThat(first.path("liveSummary").get(0).path("evidence").get(0).path("start").asDouble()).isEqualTo(91.92);
         assertThat(pairs(first.path("docs")))
                 .containsExactly("upload:" + materialId, "minutes:301", "minutes:302");
 

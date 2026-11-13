@@ -56,6 +56,26 @@ class ChatbotTest extends ApiTestSupport {
     void resetFake() {
         FakeAiService.chatAnswer(200, NO_RESULT);
         FakeAiService.respondWith(200);
+        FakeAiService.rejectIngest(null);
+    }
+
+    @Test
+    void ai_service에_사전_자료_저장소_허용이_없어_거절되면_실패로_굳히지_않고_다른_거절은_실패로_둔다() throws Exception {
+        Long owner = newId();
+        Long folderId = folder(newId(), "폴더", owner);
+        Long meetingId = createMeeting(folderId, owner, owner);
+        Long notConfigured = upload(meetingId, owner, "설정 전.pdf");
+
+        FakeAiService.rejectIngest("{\"error\":\"INVALID_INPUT\",\"detail\":\"업로드 문서를 받도록 설정되지 않음 (RAG_UPLOAD_ALLOWED_HOSTS)\"}");
+        materialRagSync.run();
+        MeetingMaterial waiting = materialRepository.findById(notConfigured).orElseThrow();
+        assertThat(waiting.getRagStatus()).isEqualTo(RagStatus.PENDING);
+        assertThat(waiting.getRagErrorCode()).isEqualTo("unavailable");
+
+        Long wrong = upload(meetingId, owner, "틀린 요청.pdf");
+        FakeAiService.rejectIngest("{\"error\":\"INVALID_INPUT\",\"detail\":\"title 이 비었음\"}");
+        materialRagSync.run();
+        assertThat(materialRepository.findById(wrong).orElseThrow().getRagStatus()).isEqualTo(RagStatus.FAILED);
     }
 
     @Test

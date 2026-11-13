@@ -19,6 +19,9 @@ public class RagClient {
 
     public static final String REQUEST_ID_HEADER = "X-Request-Id";
     private static final String PREFIX = "/internal/rag";
+    /** 사전 자료 저장소를 허용하지 않을 때 ai-service가 detail에 넣는 글 */
+    private static final java.util.List<String> UPLOAD_NOT_CONFIGURED = java.util.List.of("RAG_UPLOAD_ALLOWED_HOSTS",
+            "허용한 저장소가 아님");
 
     private final RestClient ingestClient;
     private final RestClient chatClient;
@@ -84,12 +87,30 @@ public class RagClient {
         } catch (HttpClientErrorException e) {
             int status = e.getStatusCode().value();
             String message = "ai-service RAG가 거절했습니다: " + e.getStatusCode() + " " + errorOf(e);
+            if (status == HttpStatus.BAD_REQUEST.value() && isUploadNotConfigured(e)) {
+                // 요청이 틀린 것이 아니라 ai-service에 사전 자료 저장소 허용(RAG_UPLOAD_ALLOWED_HOSTS)이 아직 없다. 설정되면 다시 보낸다
+                throw new AiServiceException(message + " (사전 자료 저장소 허용 설정 전)", e);
+            }
             if (status == HttpStatus.BAD_REQUEST.value() || status == HttpStatus.CONFLICT.value()) {
                 throw new AiRejectedException(message, e);
             }
             throw new AiServiceException(message, e);
         } catch (RestClientException e) {
             throw new AiServiceException("ai-service RAG 호출 실패: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * ai-service가 사전 자료 저장소를 허용하지 않아 거절했는지 (rag/download.py check_file_url의 detail).
+     * error 코드는 다른 400과 같은 INVALID_INPUT이라 detail로 가른다. 따로 코드가 생기면 그것으로 바꾼다
+     */
+    static boolean isUploadNotConfigured(HttpClientErrorException e) {
+        try {
+            JsonNode body = e.getResponseBodyAs(JsonNode.class);
+            String detail = body == null ? "" : body.path("detail").asString("");
+            return UPLOAD_NOT_CONFIGURED.stream().anyMatch(detail::contains);
+        } catch (RuntimeException ignored) {
+            return false;
         }
     }
 

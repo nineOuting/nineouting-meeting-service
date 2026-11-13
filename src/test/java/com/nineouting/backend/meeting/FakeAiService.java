@@ -30,6 +30,8 @@ public final class FakeAiService {
     private static final AtomicReference<String> CHAT_ANSWER = new AtomicReference<>(
             "{\"status\":\"no_result\",\"basis\":null,\"answer\":\"회의 자료에서 찾을 수 없어요\",\"citations\":[],\"errorCode\":null}");
     private static final AtomicInteger CHAT_STATUS = new AtomicInteger(200);
+    /** null이 아니면 문서 넣기를 이 본문의 400으로 거절한다 */
+    private static final AtomicReference<String> INGEST_REJECT = new AtomicReference<>();
     /** minutes-service 대신: 폴더 번호 → 작성 완료 회의록 번호 (GET /internal/minutes/rag-docs) */
     private static final Map<Long, String> MINUTES_DOCS = new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -67,6 +69,10 @@ public final class FakeAiService {
     public static void chatAnswer(int status, String body) {
         CHAT_STATUS.set(status);
         CHAT_ANSWER.set(body);
+    }
+
+    public static void rejectIngest(String body) {
+        INGEST_REJECT.set(body);
     }
 
     public static void minutesDocs(Long folderId, String idsJson) {
@@ -123,6 +129,11 @@ public final class FakeAiService {
             String query = exchange.getRequestURI().getQuery();
             Long folderId = Long.valueOf(query.substring(query.indexOf('=') + 1));
             respond(exchange, 200, MINUTES_DOCS.getOrDefault(folderId, "[]"));
+            return;
+        }
+        String reject = INGEST_REJECT.get();
+        if (reject != null && path.equals("/internal/rag/documents") && "POST".equals(method)) {
+            respond(exchange, 400, reject);
             return;
         }
         int status = path.equals("/internal/rag/chat") ? CHAT_STATUS.get() : STATUS.get();

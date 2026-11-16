@@ -4,6 +4,7 @@ import com.nineouting.backend.common.security.jwt.AuthenticatedUser;
 import com.nineouting.backend.common.security.web.CurrentUser;
 import com.nineouting.backend.common.web.response.ApiResponse;
 import com.nineouting.backend.meeting.dto.AddAgendaRequest;
+import com.nineouting.backend.meeting.dto.AddDecisionPointRequest;
 import com.nineouting.backend.meeting.dto.AgendaResponse;
 import com.nineouting.backend.meeting.dto.CarryOverRequest;
 import com.nineouting.backend.meeting.dto.PendingAgendaResponse;
@@ -69,6 +70,16 @@ public class MeetingProgressController {
         return ApiResponse.ok(progressService.renameAgenda(meetingId, user.userId(), agendaId, request.title()));
     }
 
+    /** 회의 중 결정할 사항 더하기 (회의록 작성자, 안건당 5개까지) */
+    @PostMapping("/api/meetings/{meetingId}/agendas/{agendaId}/decision-points")
+    public ResponseEntity<ApiResponse<AgendaResponse>> addDecisionPoint(@CurrentUser AuthenticatedUser user,
+                                                                        @PathVariable Long meetingId,
+                                                                        @PathVariable Long agendaId,
+                                                                        @Valid @RequestBody AddDecisionPointRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(
+                progressService.addDecisionPoint(meetingId, user.userId(), agendaId, request.content())));
+    }
+
     /** REQ-173 회의 중 안건 삭제 (회의록 작성자, 1개는 남긴다) */
     @DeleteMapping("/api/meetings/{meetingId}/agendas/{agendaId}")
     public ApiResponse<Void> deleteAgenda(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId,
@@ -97,5 +108,21 @@ public class MeetingProgressController {
     public ApiResponse<List<PendingAgendaResponse>> pendingAgendas(@CurrentUser AuthenticatedUser user,
                                                                    @PathVariable Long folderId) {
         return ApiResponse.ok(pendingAgendaService.list(folderId, user.userId()));
+    }
+
+    /** 남은 안건 버리기 (폴더에 들어갈 수 있는 사람, 대기 중인 안건만). 목록에서 빠진다 */
+    @DeleteMapping("/api/folders/{folderId}/pending-agendas/{pendingAgendaId}")
+    public ApiResponse<Void> discardPendingAgenda(@CurrentUser AuthenticatedUser user, @PathVariable Long folderId,
+                                                  @PathVariable Long pendingAgendaId) {
+        pendingAgendaService.discard(folderId, user.userId(), pendingAgendaId);
+        return ApiResponse.ok();
+    }
+
+    /** 버린 남은 안건 되돌리기 (버린 직후 [되돌리기]) */
+    @PostMapping("/api/folders/{folderId}/pending-agendas/{pendingAgendaId}/restore")
+    public ApiResponse<Void> restorePendingAgenda(@CurrentUser AuthenticatedUser user, @PathVariable Long folderId,
+                                                  @PathVariable Long pendingAgendaId) {
+        pendingAgendaService.restore(folderId, user.userId(), pendingAgendaId);
+        return ApiResponse.ok();
     }
 }

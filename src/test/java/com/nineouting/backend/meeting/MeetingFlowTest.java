@@ -72,9 +72,23 @@ class MeetingFlowTest extends ApiTestSupport {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
                 .andExpect(jsonPath("$.data[*].field", containsInAnyOrder("title", "startAt", "agendas[0].decisionPoints[0]")));
-        call(owner, post("/api/folders/" + folderId + "/meetings"),
+    }
+
+    @Test
+    void 안건_없이_만들고_시작할_때_안건이_있어야_한다() throws Exception {
+        // 디자인 Version02: 만들 때는 기본 정보만 넣고 안건은 대기 화면에서 정한다
+        Long meetingId = id(call(owner, post("/api/folders/" + folderId + "/meetings"),
                 meetingJson("회의", "2026-10-20T14:00:00", "2026-10-20T15:00:00", owner, List.of()))
-                .andExpect(jsonPath("$.data[0].field").value("agendas"));
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.agendas.length()").value(0)), "$.data.meetingId");
+        call(owner, post("/api/meetings/" + meetingId + "/start"), null)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("MEETING_NO_AGENDA"));
+
+        call(owner, put("/api/meetings/" + meetingId), meetingJson("회의", "2026-10-20T14:00:00",
+                "2026-10-20T15:00:00", owner, List.of(), "{\"title\":\"안건\",\"decisionPoints\":[\"결정\"]}"))
+                .andExpect(status().isOk());
+        call(owner, post("/api/meetings/" + meetingId + "/start"), null).andExpect(status().isOk());
     }
 
     @Test

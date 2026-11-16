@@ -14,6 +14,7 @@ import com.nineouting.backend.meeting.repository.MeetingAttendeeRepository;
 import com.nineouting.backend.meeting.repository.MeetingMaterialRepository;
 import com.nineouting.backend.meeting.repository.MeetingRepository;
 import com.nineouting.backend.meeting.repository.ProgressEventRepository;
+import com.nineouting.backend.meeting.repository.TodoCheckRepository;
 import com.nineouting.backend.meeting.repository.TranscriptLineRepository;
 import java.util.Collection;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,7 @@ public class MeetingPurger {
     private final AiFeedRepository aiFeedRepository;
     private final AiBatchRepository aiBatchRepository;
     private final LiveSummaryRepository liveSummaryRepository;
+    private final TodoCheckRepository todoCheckRepository;
     private final AiFeedbackRepository aiFeedbackRepository;
     private final MeetingMaterialRepository materialRepository;
     private final MaterialStorage materialStorage;
@@ -60,6 +62,7 @@ public class MeetingPurger {
         lineAgendaRepository.deleteByMeetingIdIn(meetingIds);
         agendaEditRepository.deleteByMeetingIdIn(meetingIds);
         liveSummaryRepository.deleteByMeetingIdIn(meetingIds);
+        todoCheckRepository.deleteByMeetingIdIn(meetingIds);
         aiFeedbackRepository.deleteByMeetingIdIn(meetingIds);
         // 사전 자료 파일(S3)도 지운다 (REQ-067). 실패해도 기록만 남기고 나머지는 지운다
         // REQ-187 챗봇 검색용 저장소에서도 지운다

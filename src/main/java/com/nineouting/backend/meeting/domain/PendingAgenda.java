@@ -99,6 +99,20 @@ public class PendingAgenda {
         this.carriedAt = carriedAt;
     }
 
+    /** 남은 안건 목록에서 지움 */
+    public void discard() {
+        this.status = PendingAgendaStatus.DISCARDED;
+    }
+
+    public boolean isDiscarded() {
+        return status == PendingAgendaStatus.DISCARDED;
+    }
+
+    /** 버린 것을 되돌림 */
+    public void restore() {
+        this.status = PendingAgendaStatus.WAITING;
+    }
+
     public void done() {
         this.status = PendingAgendaStatus.DONE;
     }

@@ -86,4 +86,14 @@ public class Agenda {
     public void rename(String title) {
         this.title = title;
     }
+
+    /** 회의 중 결정할 사항 더하기. 맨 뒤에 붙인다 */
+    public void addDecisionPoint(String content) {
+        int position = decisionPoints.isEmpty() ? 0 : decisionPoints.getLast().getPosition() + 1;
+        decisionPoints.add(new AgendaDecisionPoint(position, content));
+    }
+
+    public int decisionPointCount() {
+        return decisionPoints.size();
+    }
 }

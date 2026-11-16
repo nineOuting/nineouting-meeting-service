@@ -7,5 +7,7 @@ public enum PendingAgendaStatus {
     /** 진행 중: 다음 회의에 불러옴 */
     IN_PROGRESS,
     /** 처리됨: 불러온 회의가 마무리됐는데 다시 넘기지 않음 */
-    DONE
+    DONE,
+    /** 버림: 남은 안건 목록에서 사용자가 지움. 되돌리면 대기로 돌아간다 */
+    DISCARDED
 }

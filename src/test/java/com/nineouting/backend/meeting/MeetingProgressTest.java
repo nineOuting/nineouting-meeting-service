@@ -2,6 +2,7 @@ package com.nineouting.backend.meeting;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -194,6 +195,81 @@ class MeetingProgressTest extends ApiTestSupport {
         call(owner, post("/api/meetings/" + cancelled + "/cancel"), null);
         call(owner, get("/api/folders/" + folderId + "/pending-agendas"), null)
                 .andExpect(jsonPath("$.data[0].status").value("WAITING"));
+    }
+
+    @Test
+    void 회의_중_결정할_사항을_더하면_안건당_5개까지_들어간다() throws Exception {
+        Long meetingId = createMeeting(folderId, owner, writer, writer);
+        Long agendaId = id(call(writer, get("/api/meetings/" + meetingId), null), "$.data.agendas[0].agendaId");
+        String path = "/api/meetings/" + meetingId + "/agendas/" + agendaId + "/decision-points";
+
+        call(writer, post(path), "{\"content\":\"담당\"}")
+                .andExpect(jsonPath("$.code").value("MEETING_NOT_IN_PROGRESS"));
+        call(writer, post("/api/meetings/" + meetingId + "/start"), null);
+        call(owner, post(path), "{\"content\":\"담당\"}").andExpect(jsonPath("$.code").value("NOT_MEETING_WRITER"));
+        call(writer, post(path), "{\"content\":\" \"}").andExpect(status().isBadRequest());
+
+        call(writer, post(path), "{\"content\":\" 담당 \"}")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.decisionPoints[*].text", contains("결정1", "담당")))
+                .andExpect(jsonPath("$.data.decisionPoints[1].position").value(1))
+                .andExpect(jsonPath("$.data.decisionPoints[1].decisionPointId").isNumber());
+        for (int i = 0; i < 3; i++) {
+            call(writer, post(path), "{\"content\":\"사항%d\"}".formatted(i)).andExpect(status().isCreated());
+        }
+        call(writer, post(path), "{\"content\":\"여섯째\"}")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DECISION_POINT_LIMIT_EXCEEDED"));
+        call(writer, get("/api/meetings/" + meetingId), null)
+                .andExpect(jsonPath("$.data.agendas[0].decisionPoints.length()").value(5));
+    }
+
+    @Test
+    void 남은_안건을_버리면_목록에서_빠지고_되돌리면_다시_보인다() throws Exception {
+        Long pendingId = carriedPendingAgenda();
+        String path = "/api/folders/" + folderId + "/pending-agendas/" + pendingId;
+
+        call(newId(), delete(path), null).andExpect(status().isForbidden());
+        call(folderMember, post(path + "/restore"), null)
+                .andExpect(jsonPath("$.code").value("PENDING_AGENDA_NOT_DISCARDED"));
+        call(folderMember, delete(path), null).andExpect(status().isOk());
+        call(owner, get("/api/folders/" + folderId + "/pending-agendas"), null)
+                .andExpect(jsonPath("$.data.length()").value(0));
+        // 버린 안건은 다음 회의에 불러올 수 없다
+        String loadPending = "{\"title\":\"안건1\",\"decisionPoints\":[\"결정1\"],\"pendingAgendaId\":%d}".formatted(pendingId);
+        call(owner, post("/api/folders/" + folderId + "/meetings"),
+                meetingJson("다음", "2026-10-27T14:00:00", "2026-10-27T15:00:00", owner, List.of(), loadPending))
+                .andExpect(jsonPath("$.code").value("PENDING_AGENDA_UNAVAILABLE"));
+
+        call(folderMember, post(path + "/restore"), null).andExpect(status().isOk());
+        call(owner, get("/api/folders/" + folderId + "/pending-agendas"), null)
+                .andExpect(jsonPath("$.data[0].pendingAgendaId").value(pendingId))
+                .andExpect(jsonPath("$.data[0].status").value("WAITING"));
+
+        // 다른 회의에 불러온 안건은 버릴 수 없다
+        call(owner, post("/api/folders/" + folderId + "/meetings"),
+                meetingJson("다음", "2026-10-27T14:00:00", "2026-10-27T15:00:00", owner, List.of(), loadPending))
+                .andExpect(status().isCreated());
+        call(folderMember, delete(path), null).andExpect(jsonPath("$.code").value("PENDING_AGENDA_UNAVAILABLE"));
+        call(owner, delete("/api/folders/" + folder(newId(), "남의 폴더", owner) + "/pending-agendas/" + pendingId), null)
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void 회의록_작성자가_할_일을_완료로_체크하고_풀_수_있다() throws Exception {
+        Long meetingId = createMeeting(folderId, owner, writer, writer);
+        String path = "/api/meetings/" + meetingId + "/todo-checks";
+
+        call(writer, put(path + "/t-1"), "{\"done\":true}").andExpect(jsonPath("$.code").value("MEETING_NOT_IN_PROGRESS"));
+        call(writer, post("/api/meetings/" + meetingId + "/start"), null);
+        call(owner, put(path + "/t-1"), "{\"done\":true}").andExpect(jsonPath("$.code").value("NOT_MEETING_WRITER"));
+
+        call(writer, put(path + "/t-1"), "{\"done\":true}").andExpect(jsonPath("$.data", contains("t-1")));
+        call(writer, put(path + "/t-2"), "{\"done\":true}");
+        call(writer, put(path + "/t-1"), "{\"done\":true}").andExpect(jsonPath("$.data", contains("t-1", "t-2")));
+        call(writer, put(path + "/t-1"), "{\"done\":false}").andExpect(jsonPath("$.data", contains("t-2")));
+        call(owner, get(path), null).andExpect(jsonPath("$.data", contains("t-2")));
+        call(newId(), get(path), null).andExpect(status().isForbidden());
     }
 
     /** 첫 회의에서 안건1을 넘기고 마무리한 뒤 남은 안건 ID */

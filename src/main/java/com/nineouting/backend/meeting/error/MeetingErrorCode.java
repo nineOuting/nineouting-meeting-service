@@ -39,6 +39,9 @@ public enum MeetingErrorCode implements ErrorCode {
     MATERIAL_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "사전 자료는 회의마다 20개까지 올릴 수 있습니다"),
     MATERIAL_NOT_UPLOADED(HttpStatus.CONFLICT, "파일이 아직 올라가지 않았습니다. 다시 올려 주세요"),
     LAST_AGENDA_UNDELETABLE(HttpStatus.CONFLICT, "안건은 1개 이상 남겨야 합니다"),
+    MEETING_NO_AGENDA(HttpStatus.CONFLICT, "안건을 1개 이상 등록해 주세요"),
+    DECISION_POINT_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "결정할 사항은 5개까지 입력할 수 있습니다"),
+    PENDING_AGENDA_NOT_DISCARDED(HttpStatus.CONFLICT, "버린 남은 안건이 아닙니다"),
     MEETING_IN_PROGRESS_UNDELETABLE(HttpStatus.CONFLICT, "진행 중인 회의는 지울 수 없습니다. 먼저 회의를 끝내 주세요");
 
     private final HttpStatus status;

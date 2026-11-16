@@ -2,7 +2,6 @@ package com.nineouting.backend.meeting.dto;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
@@ -12,7 +11,8 @@ import java.util.List;
  * 회의 생성(REQ-059~063, 065~071)·수정(REQ-064). 시각은 한국 시간.
  *
  * @param attendeeUserIds   참석자. 만든 사람은 없어도 들어간다
- * @param agendas           배열 순서 = 안건 순서 (REQ-069)
+ * @param agendas           배열 순서 = 안건 순서 (REQ-069). 만들 때는 비워도 된다 (대기 화면에서 정한다, 디자인 Version02).
+ *                          회의를 시작할 때 1개 이상 있어야 한다
  * @param previousMeetingId 이어서 만들기(REQ-049, 레거시)의 이전 회의. 생성할 때만 쓴다
  */
 public record MeetingRequest(
@@ -28,7 +28,6 @@ public record MeetingRequest(
         List<Long> attendeeUserIds,
         @NotNull(message = "회의록 작성자를 선택해 주세요")
         Long writerUserId,
-        @NotEmpty(message = "안건을 1개 이상 등록해 주세요")
         List<@Valid AgendaRequest> agendas,
         Long previousMeetingId
 ) {
@@ -36,5 +35,6 @@ public record MeetingRequest(
         title = title == null ? null : title.trim();
         location = location == null || location.isBlank() ? null : location.trim();
         attendeeUserIds = attendeeUserIds == null ? List.of() : attendeeUserIds;
+        agendas = agendas == null ? List.of() : agendas;
     }
 }

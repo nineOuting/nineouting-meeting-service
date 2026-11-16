@@ -14,6 +14,7 @@ import com.nineouting.backend.meeting.domain.PendingAgenda;
 import com.nineouting.backend.meeting.domain.PendingAgendaStatus;
 import com.nineouting.backend.meeting.dto.AddAgendaRequest;
 import com.nineouting.backend.meeting.dto.AgendaResponse;
+import com.nineouting.backend.meeting.dto.DecisionPoints;
 import com.nineouting.backend.meeting.dto.RoomMessage;
 import com.nineouting.backend.meeting.error.MeetingErrorCode;
 import com.nineouting.backend.meeting.repository.AgendaRepository;
@@ -63,6 +64,10 @@ public class MeetingProgressService {
         if (!meeting.is(MeetingStatus.SCHEDULED)) {
             throw new BusinessException(MeetingErrorCode.MEETING_ALREADY_STARTED);
         }
+        // 회의를 만들 때는 안건을 비워 둘 수 있어 시작할 때 확인한다 (디자인 Version02)
+        if (agendaRepository.findByMeetingIdOrderByPosition(meetingId).isEmpty()) {
+            throw new BusinessException(MeetingErrorCode.MEETING_NO_AGENDA);
+        }
         LocalDateTime now = LocalDateTime.now(clock);
         meeting.start(now);
         // 회의 알림·전사 줄을 ai-service로 밀어 주기 시작한다 (AiFeedJob). 안건 목록을 먼저 보낸다 (안건 보드)
@@ -111,6 +116,20 @@ public class MeetingProgressService {
         access.requireWriterInProgress(meetingId, userId);
         Agenda agenda = agendaOf(meetingId, agendaId);
         agenda.rename(title);
+        agendaBoardService.agendasChanged(meetingId);
+        return AgendaResponse.from(agenda);
+    }
+
+    /** 회의 중 결정할 사항 더하기. 회의록 작성자만, 안건당 5개까지. ai-service에 안건 목록을 다시 보낸다 */
+    @Transactional
+    public AgendaResponse addDecisionPoint(Long meetingId, Long userId, Long agendaId, String content) {
+        access.requireWriterInProgress(meetingId, userId);
+        Agenda agenda = agendaOf(meetingId, agendaId);
+        if (agenda.decisionPointCount() >= DecisionPoints.MAX_COUNT) {
+            throw new BusinessException(MeetingErrorCode.DECISION_POINT_LIMIT_EXCEEDED);
+        }
+        agenda.addDecisionPoint(content);
+        agendaRepository.flush();
         agendaBoardService.agendasChanged(meetingId);
         return AgendaResponse.from(agenda);
     }

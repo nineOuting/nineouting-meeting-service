@@ -23,6 +23,9 @@ public interface PendingAgendaRepository extends JpaRepository<PendingAgenda, Lo
 
     List<PendingAgenda> findByTakenMeetingIdAndStatus(Long takenMeetingId, PendingAgendaStatus status);
 
+    /** REQ-200 회의에서 다음 회의로 넘긴 안건 */
+    List<PendingAgenda> findByFromMeetingIdIn(java.util.Collection<Long> fromMeetingIds);
+
     @Modifying
     @Query("delete from PendingAgenda p where p.folderId in :folderIds")
     void deleteByFolderIdIn(Collection<Long> folderIds);

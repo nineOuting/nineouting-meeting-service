@@ -3,12 +3,14 @@ package com.nineouting.backend.meeting.controller;
 import com.nineouting.backend.common.security.jwt.AuthenticatedUser;
 import com.nineouting.backend.common.security.web.CurrentUser;
 import com.nineouting.backend.common.web.response.ApiResponse;
+import com.nineouting.backend.meeting.dto.FolderMeetingStatsResponse;
 import com.nineouting.backend.meeting.dto.CalendarMeetingResponse;
 import com.nineouting.backend.meeting.dto.MeetingDetailResponse;
 import com.nineouting.backend.meeting.dto.MeetingPageResponse;
 import com.nineouting.backend.meeting.dto.MeetingRequest;
 import com.nineouting.backend.meeting.dto.MeetingTemplateRequest;
 import com.nineouting.backend.meeting.dto.MoveFolderRequest;
+import com.nineouting.backend.meeting.service.FolderMeetingStatsService;
 import com.nineouting.backend.meeting.service.MeetingService;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
@@ -31,6 +33,7 @@ public class MeetingController {
     private static final String DEFAULT_PAGE_SIZE = "20";
 
     private final MeetingService meetingService;
+    private final FolderMeetingStatsService folderMeetingStatsService;
 
     /** REQ-049(레거시), 059~063, 065~071 */
     @PostMapping("/api/folders/{folderId}/meetings")
@@ -47,6 +50,12 @@ public class MeetingController {
                                                  @RequestParam(defaultValue = "0") int page,
                                                  @RequestParam(defaultValue = DEFAULT_PAGE_SIZE) int size) {
         return ApiResponse.ok(meetingService.list(folderId, user.userId(), page, size));
+    }
+
+    /** REQ-200 프로젝트 회의 현황 (최근 끝난 회의 6개의 안건 결과, 예정 시간 대비 실제 시간) */
+    @GetMapping("/api/folders/{folderId}/meetings/stats")
+    public ApiResponse<FolderMeetingStatsResponse> stats(@CurrentUser AuthenticatedUser user, @PathVariable Long folderId) {
+        return ApiResponse.ok(folderMeetingStatsService.stats(folderId, user.userId()));
     }
 
     /** REQ-018~020. 경로가 더 구체적이라 아래 {meetingId}보다 먼저 맞는다. */

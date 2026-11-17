@@ -40,6 +40,8 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
             order by m.deletedAt desc, m.id desc""")
     List<Meeting> findTrash(Long workspaceId, Long userId);
 
+    /** REQ-200 폴더의 최근 끝난 회의 */
+    List<Meeting> findTop6ByFolderIdAndStatusAndDeletedAtIsNullOrderByStartAtDesc(Long folderId, MeetingStatus status);
     /** REQ-196 내가 참석한 회의 중 이 상태인 것 (최근 순) */
     @Query("""
             select m from Meeting m

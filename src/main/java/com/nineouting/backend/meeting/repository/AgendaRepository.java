@@ -11,6 +11,8 @@ public interface AgendaRepository extends JpaRepository<Agenda, Long> {
 
     List<Agenda> findByMeetingIdOrderByPosition(Long meetingId);
 
+    List<Agenda> findByMeetingIdIn(java.util.Collection<Long> meetingIds);
+
     @Modifying(flushAutomatically = true)
     @Query("delete from Agenda a where a.meetingId = :meetingId")
     void deleteByMeetingId(Long meetingId);

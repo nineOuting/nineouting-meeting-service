@@ -12,6 +12,8 @@ public interface TodoCheckRepository extends JpaRepository<TodoCheck, TodoCheck.
 
     List<TodoCheck> findByMeetingIdOrderByCheckedAt(Long meetingId);
 
+    List<TodoCheck> findByMeetingIdIn(Collection<Long> meetingIds);
+
     /** 이미 체크했으면 그대로 둔다 (두 사람이 함께 눌러도 한 줄) */
     @Modifying
     @Query(value = """

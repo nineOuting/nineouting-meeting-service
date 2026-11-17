@@ -35,11 +35,14 @@ public class MeetingAccess {
 
     /** 회의가 있는 폴더에 들어갈 수 있는 사람만 회의를 볼 수 있다 */
     public Meeting requireViewable(Long meetingId, Long userId) {
-        // 쓰레기통에 있는 회의는 없는 회의처럼 본다 (REQ-166)
         Meeting meeting = meetingRepository.findById(meetingId)
-                .filter(found -> !found.isTrashed())
                 .orElseThrow(() -> new BusinessException(CommonErrorCode.NOT_FOUND));
         requireFolderAccess(meeting.getFolderId(), userId);
+        // 쓰레기통에 있는 회의는 열 수 없다 (REQ-166). 링크로 들어온 사람에게 삭제됐다고 알린다 (REQ-206)
+        if (meeting.isTrashed()) {
+            boolean restorable = userId.equals(meeting.getDeletedByUserId()) || meeting.isOwnedBy(userId);
+            throw new BusinessException(restorable ? MeetingErrorCode.MEETING_DELETED_RESTORABLE : MeetingErrorCode.MEETING_DELETED);
+        }
         return meeting;
     }
 

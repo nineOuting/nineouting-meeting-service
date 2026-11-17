@@ -42,6 +42,13 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
 
     /** REQ-200 폴더의 최근 끝난 회의 */
     List<Meeting> findTop6ByFolderIdAndStatusAndDeletedAtIsNullOrderByStartAtDesc(Long folderId, MeetingStatus status);
+    /** REQ-196 내가 참석한 회의 중 이 상태인 것 (최근 순) */
+    @Query("""
+            select m from Meeting m
+            where m.status = :status and m.deletedAt is null
+              and exists (select 1 from MeetingAttendee a where a.meetingId = m.id and a.userId = :userId)
+            order by m.startAt desc, m.id desc""")
+    List<Meeting> findAttended(Long userId, MeetingStatus status, Pageable pageable);
 
     /** 보관 기간이 지난 쓰레기통 회의 */
     List<Meeting> findByDeletedAtBefore(LocalDateTime before);

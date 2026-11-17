@@ -34,7 +34,12 @@ class MeetingTrashTest extends ApiTestSupport {
         call(owner, delete("/api/meetings/" + meetingId), null).andExpect(status().isOk());
         assertThat(outboxContains("MeetingTrashed", "\"meetingId\":" + meetingId)).isTrue();
 
-        call(owner, get("/api/meetings/" + meetingId), null).andExpect(status().isNotFound());
+        // REQ-206 삭제된 회의 링크: 복구할 수 있는 사람(지운 사람, 만든 사람)인지 함께 알린다. 폴더에 못 들어가면 권한 없음
+        call(owner, get("/api/meetings/" + meetingId), null)
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("MEETING_DELETED_RESTORABLE"));
+        call(attendee, get("/api/meetings/" + meetingId), null).andExpect(jsonPath("$.code").value("MEETING_DELETED"));
+        call(newId(), get("/api/meetings/" + meetingId), null).andExpect(status().isForbidden());
         call(owner, get("/api/folders/" + folderId + "/meetings"), null)
                 .andExpect(jsonPath("$.data.items.length()").value(0));
         call(owner, get("/api/meetings/trash").param("workspaceId", workspaceId.toString()), null)

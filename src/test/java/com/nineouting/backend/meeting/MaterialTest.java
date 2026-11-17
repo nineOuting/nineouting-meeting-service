@@ -90,7 +90,7 @@ class MaterialTest extends ApiTestSupport {
     }
 
     @Test
-    void 취소된_회의에는_자료를_올리지_않는다() throws Exception {
+    void 삭제한_회의에는_자료를_올리지_않는다() throws Exception {
         Long workspaceId = newId();
         Long owner = newId();
         Long folderId = folder(workspaceId, "폴더", owner);
@@ -98,8 +98,7 @@ class MaterialTest extends ApiTestSupport {
         call(owner, post("/api/meetings/" + meetingId + "/cancel"), null).andExpect(status().isOk());
 
         call(owner, post("/api/meetings/" + meetingId + "/materials"), uploadJson("자료.txt", 10))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("MEETING_CANCELLED"));
+                .andExpect(status().isNotFound());
     }
 
     @Test

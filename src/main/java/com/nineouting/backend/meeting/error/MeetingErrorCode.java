@@ -14,6 +14,9 @@ import org.springframework.http.HttpStatus;
 public enum MeetingErrorCode implements ErrorCode {
 
     FOLDER_ACCESS_DENIED(HttpStatus.FORBIDDEN, "폴더에 접근할 권한이 없습니다"),
+    // REQ-206 삭제된 회의 링크. 지운 사람과 만든 사람은 삭제 목록에서 복구할 수 있다 (MSG-087)
+    MEETING_DELETED(HttpStatus.NOT_FOUND, "삭제된 회의예요"),
+    MEETING_DELETED_RESTORABLE(HttpStatus.NOT_FOUND, "삭제된 회의예요. 삭제 목록에서 3개월 동안 복구할 수 있어요"),
     NOT_MEETING_OWNER(HttpStatus.FORBIDDEN, "회의를 만든 사람만 할 수 있습니다"),
     NOT_MEETING_ATTENDEE(HttpStatus.FORBIDDEN, "회의 참석자만 할 수 있습니다"),
     NOT_MEETING_WRITER(HttpStatus.FORBIDDEN, "회의록 작성자만 할 수 있습니다"),

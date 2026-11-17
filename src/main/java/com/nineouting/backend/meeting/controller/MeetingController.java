@@ -53,7 +53,7 @@ public class MeetingController {
     }
 
     /** REQ-200 프로젝트 회의 현황 (최근 끝난 회의 6개의 안건 결과, 예정 시간 대비 실제 시간) */
-    @GetMapping("/api/folders/{folderId}/meeting-stats")
+    @GetMapping("/api/folders/{folderId}/meetings/stats")
     public ApiResponse<FolderMeetingStatsResponse> stats(@CurrentUser AuthenticatedUser user, @PathVariable Long folderId) {
         return ApiResponse.ok(folderMeetingStatsService.stats(folderId, user.userId()));
     }

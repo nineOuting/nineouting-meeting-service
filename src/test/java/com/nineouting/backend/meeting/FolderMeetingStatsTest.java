@@ -15,7 +15,7 @@ class FolderMeetingStatsTest extends ApiTestSupport {
     void 끝난_회의의_안건_결과와_예정_시간을_센다() throws Exception {
         Long owner = newId();
         Long folderId = folder(newId(), "기획", owner);
-        String path = "/api/folders/" + folderId + "/meeting-stats";
+        String path = "/api/folders/" + folderId + "/meetings/stats";
         call(owner, get(path), null).andExpect(jsonPath("$.data.meetings.length()").value(0));
 
         String agendas = "{\"title\":\"배포\",\"decisionPoints\":[\"날짜\"]},{\"title\":\"예산\",\"decisionPoints\":[\"금액\"]}";

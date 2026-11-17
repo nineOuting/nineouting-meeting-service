@@ -154,21 +154,24 @@ class MeetingFlowTest extends ApiTestSupport {
     }
 
     @Test
-    void 취소한_회의는_목록과_캘린더에서_숨기고_참석자에게_알린다() throws Exception {
+    void 대기_화면에서_삭제한_회의는_삭제_목록으로_가고_참석자에게_취소를_알린다() throws Exception {
         Long meetingId = createMeeting(folderId, owner, owner, member);
 
         call(outsider, post("/api/meetings/" + meetingId + "/cancel"), null)
                 .andExpect(status().isForbidden());
         call(member, post("/api/meetings/" + meetingId + "/cancel"), null).andExpect(status().isOk());
 
-        call(member, get("/api/meetings/" + meetingId), null).andExpect(jsonPath("$.data.status").value("CANCELLED"));
+        call(member, get("/api/meetings/" + meetingId), null).andExpect(status().isNotFound());
         call(member, get("/api/folders/" + folderId + "/meetings"), null)
                 .andExpect(jsonPath("$.data.totalCount").value(0));
         call(member, get("/api/meetings/calendar").param("from", "2026-10-01").param("to", "2026-10-31"), null)
                 .andExpect(jsonPath("$.data.length()").value(0));
         assertThat(outboxContains(MeetingCancelled.TYPE, "\"meetingId\":" + meetingId)).isTrue();
-        call(owner, post("/api/meetings/" + meetingId + "/cancel"), null)
-                .andExpect(jsonPath("$.code").value("MEETING_NOT_EDITABLE"));
+        call(owner, post("/api/meetings/" + meetingId + "/cancel"), null).andExpect(status().isNotFound());
+
+        // 지운 사람이 삭제 목록에서 되살리면 예정된 회의로 돌아온다
+        call(member, post("/api/meetings/" + meetingId + "/restore"), null).andExpect(status().isOk());
+        call(member, get("/api/meetings/" + meetingId), null).andExpect(jsonPath("$.data.status").value("SCHEDULED"));
     }
 
     @Test

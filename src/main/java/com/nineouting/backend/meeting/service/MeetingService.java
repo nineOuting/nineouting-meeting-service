@@ -10,6 +10,8 @@ import com.nineouting.backend.common.event.meeting.MeetingCreated;
 import com.nineouting.backend.common.event.meeting.MeetingMoved;
 import com.nineouting.backend.common.event.meeting.MeetingUpdated;
 import com.nineouting.backend.common.outbox.OutboxEventWriter;
+import com.nineouting.backend.meeting.event.MeetingTrashEvents;
+import com.nineouting.backend.meeting.event.MeetingTrashEvents.MeetingTrashed;
 import com.nineouting.backend.common.web.error.BusinessException;
 import com.nineouting.backend.common.web.error.CommonErrorCode;
 import com.nineouting.backend.meeting.domain.Agenda;
@@ -173,17 +175,23 @@ public class MeetingService {
         return detail(meeting);
     }
 
-    /** REQ-073. 참석자 모두, 시작 전에만. 불러온 남은 안건은 다시 대기로 돌린다. */
+    /**
+     * REQ-073 회의 삭제 (대기 화면). 참석자 모두, 시작 전에만. 불러온 남은 안건은 다시 대기로 돌린다.
+     * 2026-11-17 기획: 삭제한 회의는 삭제 목록(REQ-143)으로 가서 지운 사람과 만든 사람이 3개월 동안 복구할 수 있고,
+     * 참석자에게는 회의 취소 알림이 간다.
+     */
     @Transactional
     public void cancel(Long meetingId, Long userId) {
         Meeting meeting = access.requireEditable(meetingId, userId);
-        meeting.cancel(LocalDateTime.now(clock));
+        meeting.trash(userId, LocalDateTime.now(clock));
         pendingAgendaRepository.findByTakenMeetingIdAndStatus(meetingId, PendingAgendaStatus.IN_PROGRESS)
                 .forEach(PendingAgenda::release);
 
         outboxEventWriter.append(MeetingCancelled.TOPIC, meetingId.toString(), MeetingCancelled.TYPE,
                 new MeetingCancelled(meetingId, meeting.getWorkspaceId(), meeting.getFolderId(), meeting.getTitle(),
                         meeting.getStartAt(), meeting.getOwnerUserId(), List.copyOf(attendeeIds(meetingId))));
+        outboxEventWriter.append(MeetingTrashEvents.TOPIC, meetingId.toString(), MeetingTrashed.TYPE,
+                new MeetingTrashed(meetingId, meeting.getWorkspaceId(), meeting.getFolderId()));
     }
 
     /** REQ-045 (레거시). 만든 사람만, 상태와 상관없이. 같은 워크스페이스에서 들어갈 수 있는 폴더로만 옮긴다. */

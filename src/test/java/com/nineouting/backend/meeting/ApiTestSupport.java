@@ -99,7 +99,9 @@ public abstract class ApiTestSupport {
         });
         given(workspaceClient.access(anyLong(), anyLong())).willAnswer(invocation -> {
             FakeFolder folder = requireFolder(invocation.getArgument(0));
-            return new FolderAccess(folder.id(), folder.workspaceId(), folder.accessors().contains(invocation.<Long>getArgument(1)));
+            Long userId = invocation.getArgument(1);
+            return new FolderAccess(folder.id(), folder.workspaceId(), folder.accessors().contains(userId),
+                    userId.equals(folder.ownerId()));
         });
         given(workspaceClient.folderMembers(anyLong()))
                 .willAnswer(invocation -> Set.copyOf(requireFolder(invocation.getArgument(0)).accessors()));
@@ -120,7 +122,16 @@ public abstract class ApiTestSupport {
     /** 가짜 workspace-service에 폴더를 만든다. accessors = 폴더에 들어갈 수 있는 사람 */
     protected static Long folder(Long workspaceId, String name, Long... accessors) {
         Long id = newId();
-        FOLDERS.put(id, new FakeFolder(id, workspaceId, name, new LinkedHashSet<>(List.of(accessors))));
+        FOLDERS.put(id, new FakeFolder(id, workspaceId, name, null, new LinkedHashSet<>(List.of(accessors))));
+        return id;
+    }
+
+    /** 소유자가 있는 폴더. 소유자도 들어갈 수 있다 */
+    protected static Long ownedFolder(Long workspaceId, String name, Long ownerId, Long... accessors) {
+        Long id = newId();
+        Set<Long> all = new LinkedHashSet<>(List.of(ownerId));
+        all.addAll(List.of(accessors));
+        FOLDERS.put(id, new FakeFolder(id, workspaceId, name, ownerId, all));
         return id;
     }
 
@@ -169,6 +180,6 @@ public abstract class ApiTestSupport {
         return JsonPath.read(result.andReturn().getResponse().getContentAsString(), path);
     }
 
-    private record FakeFolder(Long id, Long workspaceId, String name, Set<Long> accessors) {
+    private record FakeFolder(Long id, Long workspaceId, String name, Long ownerId, Set<Long> accessors) {
     }
 }

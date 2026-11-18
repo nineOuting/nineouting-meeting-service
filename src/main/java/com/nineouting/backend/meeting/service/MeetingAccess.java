@@ -55,6 +55,15 @@ public class MeetingAccess {
         return meeting;
     }
 
+    /** 회의 삭제(쓰레기통으로): 회의를 만든 사람이나 폴더 소유자 (REQ-166, REQ-160 회의록 삭제는 폴더 소유자) */
+    public Meeting requireDeletable(Long meetingId, Long userId) {
+        Meeting meeting = requireViewable(meetingId, userId);
+        if (!meeting.isOwnedBy(userId) && !workspaceClient.access(meeting.getFolderId(), userId).owner()) {
+            throw new BusinessException(MeetingErrorCode.NOT_MEETING_OWNER);
+        }
+        return meeting;
+    }
+
     /** 수정·취소: 참석자 모두, 시작 전에만 (REQ-064, 073) */
     public Meeting requireEditable(Long meetingId, Long userId) {
         Meeting meeting = requireAttendee(meetingId, userId);

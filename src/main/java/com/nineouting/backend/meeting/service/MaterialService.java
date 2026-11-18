@@ -25,7 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * REQ-067 회의 사전 자료 (MSG-067). 참석자가 올리고, 회의를 볼 수 있는 사람은 누구나 내려받는다.
- * 지우기는 올린 사람과 회의를 만든 사람. 파일 하나 50MB, 회의마다 20개까지.
+ * 지우기는 올린 사람과 회의를 만든 사람. 파일 하나 50MB, 회의마다 5개까지.
  * REQ-187 다 올라간 자료는 챗봇 검색용 저장소에 넣고, 목록에 검색 상태를 보여 준다.
  */
 @Service
@@ -33,7 +33,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class MaterialService {
 
     public static final long MAX_BYTES = 50L * 1024 * 1024;
-    static final int MAX_COUNT = 20;
+    /** REQ-067 회의당 최대 5개 (2026-11-18 디자인, 명세) */
+    static final int MAX_COUNT = 5;
     private static final String KEY_PREFIX = "meeting-materials/";
 
     private final MeetingMaterialRepository repository;

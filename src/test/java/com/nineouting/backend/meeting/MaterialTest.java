@@ -90,6 +90,22 @@ class MaterialTest extends ApiTestSupport {
     }
 
     @Test
+    void 사전_자료는_회의마다_5개까지_올린다() throws Exception {
+        Long workspaceId = newId();
+        Long owner = newId();
+        Long folderId = folder(workspaceId, "폴더", owner);
+        Long meetingId = createMeeting(folderId, owner, owner);
+        String path = "/api/meetings/" + meetingId + "/materials";
+        for (int i = 1; i <= 5; i++) {
+            uploadReady(owner, path, "자료" + i + ".txt");
+        }
+
+        call(owner, post(path), uploadJson("자료6.txt", 10))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("MATERIAL_LIMIT_EXCEEDED"));
+    }
+
+    @Test
     void 삭제한_회의에는_자료를_올리지_않는다() throws Exception {
         Long workspaceId = newId();
         Long owner = newId();
@@ -122,6 +138,15 @@ class MaterialTest extends ApiTestSupport {
 
         assertThat(materialStorage.head(key)).isEmpty();
         assertThat(materialRepository.findById(materialId)).isEmpty();
+    }
+
+    private void uploadReady(Long userId, String path, String fileName) throws Exception {
+        byte[] content = "자료".getBytes(StandardCharsets.UTF_8);
+        var prepared = call(userId, post(path), uploadJson(fileName, content.length)).andExpect(status().isCreated());
+        httpClient.send(HttpRequest.newBuilder(URI.create(data(prepared, "$.data.uploadUrl")))
+                .header("Content-Type", "text/plain")
+                .PUT(HttpRequest.BodyPublishers.ofByteArray(content)).build(), HttpResponse.BodyHandlers.discarding());
+        call(userId, post(path + "/" + id(prepared, "$.data.materialId") + "/complete"), null).andExpect(status().isOk());
     }
 
     private static String uploadJson(String fileName, long size) {

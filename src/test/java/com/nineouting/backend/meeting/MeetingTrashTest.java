@@ -61,6 +61,22 @@ class MeetingTrashTest extends ApiTestSupport {
     }
 
     @Test
+    void 폴더_소유자는_남이_만든_회의도_지우고_되돌린다() throws Exception {
+        Long workspaceId = newId();
+        Long folderOwner = newId();
+        Long creator = newId();
+        Long member = newId();
+        Long folderId = ownedFolder(workspaceId, "폴더", folderOwner, creator, member);
+        Long meetingId = createMeeting(folderId, creator, creator, member);
+
+        // REQ-160 [회의록 삭제]는 폴더 소유자. 폴더 소유자도 회의를 만든 사람도 아니면 못 지운다
+        call(member, delete("/api/meetings/" + meetingId), null).andExpect(status().isForbidden());
+        call(folderOwner, delete("/api/meetings/" + meetingId), null).andExpect(status().isOk());
+        call(folderOwner, post("/api/meetings/" + meetingId + "/restore"), null).andExpect(status().isOk());
+        call(member, get("/api/meetings/" + meetingId), null).andExpect(status().isOk());
+    }
+
+    @Test
     void 진행_중인_회의는_지울_수_없고_영구_삭제하면_되돌릴_수_없다() throws Exception {
         Long workspaceId = newId();
         Long owner = newId();

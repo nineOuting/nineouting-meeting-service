@@ -38,7 +38,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * 회의 쓰레기통 (REQ-166 회의 삭제, REQ-143 삭제 목록). 폴더 쓰레기통(workspace-service)과 같은 규칙이다.
  * <ul>
- *   <li>회의를 만든 사람이 지운다. 진행 중인 회의는 먼저 끝내야 한다</li>
+ *   <li>회의를 만든 사람이나 폴더 소유자가 지운다 (REQ-160). 진행 중인 회의는 먼저 끝내야 한다</li>
  *   <li>지운 사람과 회의를 만든 사람이 복구하거나 영구 삭제한다 ([되돌리기]도 복구다)</li>
  *   <li>3개월이 지나면 자동으로 영구 삭제한다</li>
  * </ul>
@@ -79,7 +79,7 @@ public class MeetingTrashService {
     /** REQ-166 회의 삭제. 시작 전 회의가 불러온 남은 안건은 다시 대기로 돌린다 (회의 취소와 같다) */
     @Transactional
     public void trash(Long meetingId, Long userId) {
-        Meeting meeting = access.requireOwner(meetingId, userId);
+        Meeting meeting = access.requireDeletable(meetingId, userId);
         if (meeting.is(MeetingStatus.IN_PROGRESS)) {
             throw new BusinessException(MeetingErrorCode.MEETING_IN_PROGRESS_UNDELETABLE);
         }

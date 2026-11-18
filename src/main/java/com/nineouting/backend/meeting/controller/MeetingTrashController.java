@@ -27,7 +27,7 @@ public class MeetingTrashController {
     private final MeetingTrashService trashService;
     private final AiFeedbackService aiFeedbackService;
 
-    /** REQ-166 회의 삭제: 쓰레기통으로. 회의를 만든 사람만, 진행 중이면 안 된다 */
+    /** REQ-166 회의 삭제: 쓰레기통으로. 회의를 만든 사람이나 폴더 소유자만 (REQ-160), 진행 중이면 안 된다 */
     @DeleteMapping("/api/meetings/{meetingId}")
     public ApiResponse<Void> trash(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId) {
         trashService.trash(meetingId, user.userId());

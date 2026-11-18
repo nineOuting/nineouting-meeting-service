@@ -36,6 +36,13 @@ public class InternalAgendaController {
         return ResponseEntity.noContent().build();
     }
 
+    /** ai-service → 전사 속 용어 목록 (REQ-191, 전사 속 용어 목록 API 명세) */
+    @PutMapping("/internal/meetings/{meetingId}/transcript-terms")
+    public ResponseEntity<Void> receiveTerms(@PathVariable Long meetingId, @RequestBody JsonNode body) {
+        agendaBoardService.receiveTerms(meetingId, body);
+        return ResponseEntity.noContent().build();
+    }
+
     /** minutes-service → AI 회의록 초안 재료 (ai-service minutes-draft-contract.md 5.1·5.2) */
     @GetMapping("/internal/meetings/{meetingId}/draft-source")
     public ApiResponse<DraftSourceResponse> draftSource(@PathVariable Long meetingId) {

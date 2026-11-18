@@ -14,6 +14,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
  *       (ai-service docs/api/agenda-*.md). 늦게 들어오면 GET /agenda-board로 지금 것을 본다</li>
  *   <li>agendaClassification: 줄별 안건 분류가 바뀜 (REQ-089). data = {version, currentAgendaId, final, lines[{seq, agendaId}]}</li>
  *   <li>lineAgenda: 회의록 작성자가 줄의 안건을 고침. data = {seq, agendaId, corrected: true}</li>
+ *   <li>transcriptTerms: ai-service가 보낸 전사 속 용어 목록이 바뀜 (REQ-191). data = 받은 JSON 그대로
+ *       (ai-service 전사 속 용어 목록 API 명세). 늦게 들어오면 GET /transcript-terms로 지금 것을 본다</li>
  *   <li>finished: 회의가 마무리됨. 서버가 연결을 닫는다</li>
  *   <li>todoChecks: 할 일 완료 체크가 바뀜. data = 체크한 할 일 항목 번호 목록</li>
  *   <li>aiStatus: ai-service가 멈추거나(available=false) 돌아옴 → 화면에 "AI 일시 중단" 표시 (REQ-082).
@@ -62,6 +64,10 @@ public record RoomMessage(String type, TranscriptLineResponse line, Integer seq,
 
     public static RoomMessage lineAgenda(Object lineAgenda) {
         return new RoomMessage("lineAgenda", null, null, null, null, null, lineAgenda);
+    }
+
+    public static RoomMessage transcriptTerms(Object terms) {
+        return new RoomMessage("transcriptTerms", null, null, null, null, null, terms);
     }
 
     /** 완료로 체크한 할 일 항목 번호 전체 */

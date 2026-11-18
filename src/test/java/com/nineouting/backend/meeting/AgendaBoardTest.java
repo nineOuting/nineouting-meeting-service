@@ -104,6 +104,31 @@ class AgendaBoardTest extends ApiTestSupport {
     }
 
     @Test
+    void 전사_속_용어_목록을_받아_두고_낮은_버전은_버리며_끝난_뒤_마지막_목록도_받는다() throws Exception {
+        call(attendee, get("/api/meetings/" + meetingId + "/transcript-terms"), null)
+                .andExpect(jsonPath("$.data.version").value(0))
+                .andExpect(jsonPath("$.data.terms").isEmpty());
+        start();
+        internalPut("transcript-terms", terms(200, false, "리텐션")).andExpect(status().isNoContent());
+        internalPut("transcript-terms", terms(150, false, "코호트")).andExpect(status().isNoContent());
+        // 모르는 칸(byRole)도 그대로 둔다
+        call(attendee, get("/api/meetings/" + meetingId + "/transcript-terms"), null)
+                .andExpect(jsonPath("$.data.version").value(200))
+                .andExpect(jsonPath("$.data.terms[0].term").value("리텐션"))
+                .andExpect(jsonPath("$.data.terms[0].byRole.dev").value("짧은 뜻"));
+
+        call(writer, post("/api/meetings/" + meetingId + "/finish"), null).andExpect(status().isOk());
+        internalPut("transcript-terms", terms(300, true, "코호트")).andExpect(status().isNoContent());
+        call(attendee, get("/api/meetings/" + meetingId + "/transcript-terms"), null)
+                .andExpect(jsonPath("$.data.final").value(true))
+                .andExpect(jsonPath("$.data.terms[0].term").value("코호트"));
+
+        internalPut("transcript-terms", "{\"meetingId\":%d,\"version\":400}".formatted(meetingId))
+                .andExpect(status().isBadRequest());
+        call(newId(), get("/api/meetings/" + meetingId + "/transcript-terms"), null).andExpect(status().isForbidden());
+    }
+
+    @Test
     void 회의록_작성자의_고치기를_ai_service로_보낸다() throws Exception {
         start();
         internalPost("/internal/meetings/" + meetingId + "/transcripts",
@@ -297,6 +322,14 @@ class AgendaBoardTest extends ApiTestSupport {
                    "summary":[],"opinions":[],"todos":[]}],
                  "offTopic":%s,"leftover":null,"todaySummary":null}"""
                 .formatted(meetingId, version, agendaId, agendaId, status, decisionPointId, offTopic);
+    }
+
+    /** meetingId는 숫자로도 온다 */
+    private String terms(long version, boolean isFinal, String term) {
+        return """
+                {"meetingId":%d,"version":%d,"final":%b,
+                 "terms":[{"id":"t-8cb45d027f27","term":"%s","aliases":[],"text":"뜻","origin":"AI_EXPLAIN","firstSeq":3,
+                   "byRole":{"dev":"짧은 뜻"}}]}""".formatted(meetingId, version, isFinal, term);
     }
 
     private ResultActions internalPut(String kind, String body) throws Exception {

@@ -42,6 +42,12 @@ public class AgendaBoardController {
         return ApiResponse.ok(agendaBoardService.board(meetingId, user.userId()));
     }
 
+    /** REQ-191 지금 전사 속 용어 목록 (회의방에 늦게 들어왔을 때). 회의방 transcriptTerms와 같은 모양 */
+    @GetMapping("/transcript-terms")
+    public ApiResponse<JsonNode> transcriptTerms(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId) {
+        return ApiResponse.ok(agendaBoardService.transcriptTerms(meetingId, user.userId()));
+    }
+
     /** REQ-089 전사 줄마다 안건 */
     @GetMapping("/line-agendas")
     public ApiResponse<List<LineAgendaResponse>> lineAgendas(@CurrentUser AuthenticatedUser user,

@@ -31,6 +31,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -138,7 +139,43 @@ public class AgendaBoardService {
         events.publishEvent(RoomEvent.send(meetingId, RoomMessage.agendaBoard(body)));
     }
 
+    /**
+     * REQ-191 전사 속 용어 목록 (PUT /internal/meetings/{id}/transcript-terms). 늘 전체가 오고, 회의가 끝난 뒤
+     * final로 한 번 더 온다. 모르는 칸이 더해질 수 있으므로 본문은 그대로 두고 그대로 보낸다
+     */
+    @Transactional
+    public void receiveTerms(Long meetingId, JsonNode body) {
+        requireSameMeeting(meetingId, body);
+        access.requireStarted(meetingId);
+        long version = requireVersion(body);
+        if (!body.path("terms").isArray()) {
+            throw new BusinessException(CommonErrorCode.INVALID_INPUT, "terms가 없습니다");
+        }
+        if (!lockOrCreate(meetingId).applyTerms(version, jsonMapper.writeValueAsString(body))) {
+            return;
+        }
+        events.publishEvent(RoomEvent.send(meetingId, RoomMessage.transcriptTerms(body)));
+    }
+
     // ---- 화면 ----
+
+    /** REQ-191 지금 용어 목록. 아직 오지 않았으면 빈 목록 (version 0) */
+    @Transactional(readOnly = true)
+    public JsonNode transcriptTerms(Long meetingId, Long userId) {
+        access.requireAttendee(meetingId, userId);
+        return stateRepository.findById(meetingId)
+                .map(AgendaState::getTerms)
+                .filter(Objects::nonNull)
+                .map(jsonMapper::readTree)
+                .orElseGet(() -> {
+                    ObjectNode empty = jsonMapper.createObjectNode();
+                    empty.put("meetingId", meetingId.toString());
+                    empty.put("version", 0);
+                    empty.put("final", false);
+                    empty.putArray("terms");
+                    return empty;
+                });
+    }
 
     @Transactional(readOnly = true)
     public AgendaBoardResponse board(Long meetingId, Long userId) {

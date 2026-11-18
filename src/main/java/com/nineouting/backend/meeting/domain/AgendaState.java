@@ -57,6 +57,13 @@ public class AgendaState {
     @Column(name = "today_summary", columnDefinition = "TEXT")
     private String todaySummary;
 
+    @Column(name = "terms_version", nullable = false)
+    private long termsVersion;
+
+    /** REQ-191 ai-service가 보낸 전사 속 용어 목록 JSON 그대로 */
+    @Column(columnDefinition = "TEXT")
+    private String terms;
+
     public AgendaState(Long meetingId) {
         this.meetingId = meetingId;
     }
@@ -109,6 +116,16 @@ public class AgendaState {
             this.offTopicDetectedAt = suggestDetectedAt;
             this.offTopicSuggestedAt = now;
         }
+        return true;
+    }
+
+    /** @return 저장한 것보다 새 용어 목록이면 true */
+    public boolean applyTerms(long version, String terms) {
+        if (version <= termsVersion) {
+            return false;
+        }
+        this.termsVersion = version;
+        this.terms = terms;
         return true;
     }
 

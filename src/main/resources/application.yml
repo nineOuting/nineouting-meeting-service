@@ -69,3 +69,11 @@ nineouting:
       max-attempts: 5
       retry-delay: 30s         # 실패할 때마다 두 배
       accepted-timeout: 10m    # 접수 뒤 콜백이 이만큼 없으면 상태 조회
+
+# JDBC span은 쿼리 실행과 연결 획득·반환 구간을 같은 trace로 연결한다.
+jdbc:
+  includes: [CONNECTION, QUERY]
+  datasource-proxy:
+    include-parameter-values: false
+    query:
+      enable-logging: false

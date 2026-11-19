@@ -49,7 +49,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * 회의 생성·조회·수정·취소·폴더 이동, 폴더 내 회의 목록, 홈 캘린더.
@@ -72,6 +75,7 @@ public class MeetingService {
     private final UserClient userClient;
     private final OutboxEventWriter outboxEventWriter;
     private final Clock clock;
+    private final PlatformTransactionManager transactionManager;
 
     /** REQ-049(레거시), 059~063, 065~066, 068~071. 만든 사람은 참석자로 자동으로 들어간다. */
     @Transactional
@@ -104,17 +108,29 @@ public class MeetingService {
     }
 
     /** REQ-048. 시작 시각 최신순, 취소된 회의는 숨긴다. 작성자·참여자 이름은 한 페이지에 한 번 묻는다 */
-    @Transactional(readOnly = true)
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public MeetingPageResponse list(Long folderId, Long userId, int page, int size) {
         access.requireFolderAccess(folderId, userId);
-        PageRequest pageable = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, MAX_PAGE_SIZE),
-                Sort.by(Sort.Order.desc("startAt"), Sort.Order.desc("id")));
-        Page<Meeting> result = meetingRepository.findByFolderIdAndStatusNotAndDeletedAtIsNull(folderId, MeetingStatus.CANCELLED, pageable);
+
+        // 외부 API 응답을 기다리는 동안 DB 연결을 점유하지 않는다.
+        record ListData(Page<Meeting> result, Map<Long, List<Long>> attendees) {}
+        TransactionTemplate transaction = new TransactionTemplate(transactionManager);
+        transaction.setReadOnly(true);
+        ListData data = transaction.execute(status -> {
+            PageRequest pageable = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, MAX_PAGE_SIZE),
+                    Sort.by(Sort.Order.desc("startAt"), Sort.Order.desc("id")));
+            Page<Meeting> result = meetingRepository.findByFolderIdAndStatusNotAndDeletedAtIsNull(
+                    folderId, MeetingStatus.CANCELLED, pageable);
+            Map<Long, List<Long>> attendees = attendeeRepository.findByMeetingIdInOrderById(
+                            result.getContent().stream().map(Meeting::getId).toList()).stream()
+                    .collect(Collectors.groupingBy(MeetingAttendee::getMeetingId,
+                            Collectors.mapping(MeetingAttendee::getUserId, Collectors.toList())));
+            return new ListData(result, attendees);
+        });
+        // Meeting의 목록 필드는 일반 값이며 지연 로딩 연관관계를 사용하지 않는다.
+        Page<Meeting> result = data.result();
         List<Meeting> meetings = result.getContent();
-        Map<Long, List<Long>> attendees = attendeeRepository.findByMeetingIdInOrderById(
-                        meetings.stream().map(Meeting::getId).toList()).stream()
-                .collect(Collectors.groupingBy(MeetingAttendee::getMeetingId,
-                        Collectors.mapping(MeetingAttendee::getUserId, Collectors.toList())));
+        Map<Long, List<Long>> attendees = data.attendees();
         Set<Long> userIds = new HashSet<>();
         meetings.forEach(meeting -> userIds.add(meeting.getWriterUserId()));
         attendees.values().forEach(userIds::addAll);

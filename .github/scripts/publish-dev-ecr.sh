@@ -19,7 +19,7 @@ stage=local-config
 archive_dir=$(mktemp -d)
 trap 'rm -rf -- "$archive_dir"' EXIT
 docker image save "$LOCAL_IMAGE" -o "$archive_dir/local.tar"
-local_config=$(python3 "$script_dir/image_config_digest.py" "$archive_dir/local.tar")
+local_config=$(python3 "$script_dir/image_config_digest.py" < "$archive_dir/local.tar")
 test "$(docker image inspect "$LOCAL_IMAGE" --format '{{.Os}}/{{.Architecture}}')" = linux/amd64
 stage=push
 docker tag "$LOCAL_IMAGE" "$target"
@@ -39,7 +39,7 @@ echo "Local/ECR config digest MATCH: $local_config"
 stage=pull-and-verify
 docker pull --platform linux/amd64 "$TARGET_IMAGE@$digest"
 docker image save "$TARGET_IMAGE@$digest" -o "$archive_dir/pulled.tar"
-pulled_config=$(python3 "$script_dir/image_config_digest.py" "$archive_dir/pulled.tar")
+pulled_config=$(python3 "$script_dir/image_config_digest.py" < "$archive_dir/pulled.tar")
 if [[ "$pulled_config" != "$local_config" ]]; then
  echo "::error::Pulled config mismatch: expected=$local_config actual=$pulled_config" >&2
  exit 1

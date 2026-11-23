@@ -11,8 +11,8 @@ import sys
 import tarfile
 
 
-def config_digest(path):
-    with tarfile.open(path, "r:*") as archive:
+def config_digest(stream):
+    with tarfile.open(fileobj=stream, mode="r:*") as archive:
         def read_member(name, limit):
             member_path = PurePosixPath(name)
             if member_path.is_absolute() or ".." in member_path.parts:
@@ -41,7 +41,7 @@ def config_digest(path):
 
 if __name__ == "__main__":
     try:
-        print(config_digest(sys.argv[1]))
+        print(config_digest(sys.stdin.buffer))
     except (OSError, ValueError, KeyError, TypeError, IndexError, tarfile.TarError) as error:
         print(f"::error::Cannot verify saved image config: {type(error).__name__}", file=sys.stderr)
         sys.exit(1)

@@ -2,6 +2,20 @@
 import hashlib
 import importlib.util
 import io
+from contextlib import redirect_stdout, redirect_stderr
+import runpy
+from contextlib import contextmanager
+import sys
+
+
+@contextmanager
+def stdin(stream):
+    previous = sys.stdin
+    sys.stdin = stream
+    try:
+        yield
+    finally:
+        sys.stdin = previous
 import json
 import os
 from pathlib import Path
@@ -104,6 +118,9 @@ class Publish(unittest.TestCase):
 
 
 class Archive(unittest.TestCase):
+    def read_config(self, path):
+        with path.open('rb') as stream:
+            return HELPER.config_digest(stream)
     def archive(self, p, config=RAW, name=None, manifests=None):
         name = name or ('blobs/sha256/' + hashlib.sha256(config).hexdigest())
         with tarfile.open(p, 'w') as t:
@@ -114,33 +131,70 @@ class Archive(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             for name in [CONFIG_DIGEST[7:] + '.json', 'blobs/sha256/' + CONFIG_DIGEST[7:]]:
                 p = Path(td) / 'image.tar'; self.archive(p, name=name)
-                self.assertEqual(HELPER.config_digest(p), CONFIG_DIGEST)
+                self.assertEqual(self.read_config(p), CONFIG_DIGEST)
 
     def test_corrupt_config_is_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             p = Path(td) / 'image.tar'; self.archive(p, name='blobs/sha256/' + 'f' * 64)
-            with self.assertRaises(ValueError): HELPER.config_digest(p)
+            with self.assertRaises(ValueError): self.read_config(p)
 
     def test_wrong_platform_is_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             p = Path(td) / 'image.tar'; self.archive(p, config=json.dumps(dict(CONFIG, architecture='arm64')).encode())
-            with self.assertRaises(ValueError): HELPER.config_digest(p)
+            with self.assertRaises(ValueError): self.read_config(p)
 
     def test_multiple_images_are_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             p = Path(td) / 'image.tar'; self.archive(p, manifests=[{'Config': 'x'}, {'Config': 'y'}])
-            with self.assertRaises(ValueError): HELPER.config_digest(p)
+            with self.assertRaises(ValueError): self.read_config(p)
 
     def test_unsafe_member_path_is_rejected_without_extraction(self):
         with tempfile.TemporaryDirectory() as td:
             p = Path(td) / 'image.tar'; self.archive(p, name='../' + CONFIG_DIGEST[7:] + '.json')
-            with self.assertRaises(ValueError): HELPER.config_digest(p)
+            with self.assertRaises(ValueError): self.read_config(p)
 
     def test_missing_config_is_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             p = Path(td) / 'image.tar'; self.archive(p, manifests=[{'Config': 'missing.json'}])
-            with self.assertRaises(KeyError): HELPER.config_digest(p)
+            with self.assertRaises(KeyError): self.read_config(p)
+
+    def test_invalid_member_size_and_type_are_rejected(self):
+        with tempfile.TemporaryDirectory() as td:
+            for oversized in [False, True]:
+                p = Path(td) / 'image.tar'
+                with tarfile.open(p, 'w') as t:
+                    info = tarfile.TarInfo('manifest.json')
+                    if oversized:
+                        data = b' ' * (1024 * 1024 + 1)
+                        info.size = len(data); t.addfile(info, io.BytesIO(data))
+                    else:
+                        info.type = tarfile.SYMTYPE; info.linkname = 'other'; t.addfile(info)
+                with self.assertRaises(ValueError): self.read_config(p)
+
+    def test_non_digest_config_name_is_rejected(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / 'image.tar'; self.archive(p, name='config.json')
+            with self.assertRaises(ValueError): self.read_config(p)
+
+    def test_cli_reads_stdin_without_accepting_a_filesystem_path(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / 'image.tar'; self.archive(p)
+            with p.open('rb') as stream, io.TextIOWrapper(stream) as input_stream, stdin(input_stream), redirect_stdout(io.StringIO()) as output:
+                runpy.run_path(str(SCRIPT.with_name('image_config_digest.py')), run_name='__main__')
+            self.assertEqual(output.getvalue().strip(), CONFIG_DIGEST)
+
+    def test_cli_failure_prints_no_config_data(self):
+        stream = io.TextIOWrapper(io.BytesIO(b'not-an-image'))
+        with stdin(stream), redirect_stdout(io.StringIO()) as output, redirect_stderr(io.StringIO()) as errors:
+            with self.assertRaises(SystemExit) as failure:
+                runpy.run_path(str(SCRIPT.with_name('image_config_digest.py')), run_name='__main__')
+        self.assertEqual(failure.exception.code, 1)
+        self.assertEqual(output.getvalue(), '')
+        self.assertIn('::error::', errors.getvalue())
 
 
 if __name__ == '__main__':
     unittest.main()
+
+
+

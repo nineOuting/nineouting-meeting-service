@@ -231,7 +231,7 @@ public class MeetingService {
     }
 
     /** REQ-018~020. 내가 들어갈 수 있는 모든 워크스페이스·폴더의 회의 (from~to, 양 끝 포함) */
-    @Transactional(readOnly = true)
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public List<CalendarMeetingResponse> calendar(Long userId, LocalDate from, LocalDate to) {
         if (to.isBefore(from) || ChronoUnit.DAYS.between(from, to) + 1 > CALENDAR_MAX_DAYS) {
             throw new BusinessException(MeetingErrorCode.CALENDAR_RANGE_INVALID);
@@ -241,7 +241,10 @@ public class MeetingService {
         if (folders.isEmpty()) {
             return List.of();
         }
-        return meetingRepository.findCalendar(folders.keySet(), MeetingStatus.CANCELLED, from.atStartOfDay(),
+        // 폴더 접근 권한을 외부 서비스에서 확인한 뒤에만 DB 연결을 획득한다.
+        TransactionTemplate transaction = new TransactionTemplate(transactionManager);
+        transaction.setReadOnly(true);
+        return transaction.execute(status -> meetingRepository.findCalendar(folders.keySet(), MeetingStatus.CANCELLED, from.atStartOfDay(),
                         to.plusDays(1).atStartOfDay()).stream()
                 .map(meeting -> {
                     AccessibleFolder folder = folders.get(meeting.getFolderId());
@@ -250,7 +253,7 @@ public class MeetingService {
                             folder.workspaceName(),
                             meeting.getFolderId(), folder.name());
                 })
-                .toList();
+                .toList());
     }
 
     MeetingDetailResponse detail(Meeting meeting) {

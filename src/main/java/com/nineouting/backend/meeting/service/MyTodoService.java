@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -46,7 +47,8 @@ public class MyTodoService {
     private final Clock clock;
 
     /** 최근 회의부터. 지금 들어갈 수 없는 폴더의 회의는 뺀다 */
-    @Transactional(readOnly = true)
+    // 다른 서비스 응답을 기다리는 동안 DB 연결을 잡고 있지 않는다. 조회마다 짧은 읽기 트랜잭션을 쓴다
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public List<MyTodoResponse> list(Long userId) {
         List<Meeting> meetings = meetingRepository.findAttended(userId, MeetingStatus.FINISHED,
                 PageRequest.of(0, RECENT_MEETINGS));

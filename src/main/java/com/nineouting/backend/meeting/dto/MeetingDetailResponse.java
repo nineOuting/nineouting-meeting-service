@@ -10,6 +10,7 @@ import java.util.List;
  * 경과 시간(REQ-081) = 지금 - startedAt - pausedSeconds - (paused면 지금 - pausedAt). 멈춘 동안은 늘지 않는다 (REQ-084)
  *
  * @param templateId 대기 화면에서 고른 회의록 양식 (REQ-123). 안 골랐으면 null
+ * @param templateName 고른 양식의 이름 (고를 때 받은 값, SCRUM-419). 안 골랐거나 이름을 받지 않았으면 null
  */
 public record MeetingDetailResponse(
         Long meetingId,
@@ -31,6 +32,7 @@ public record MeetingDetailResponse(
         boolean paused,
         LocalDateTime pausedAt,
         long pausedSeconds,
-        Long templateId
+        Long templateId,
+        String templateName
 ) {
 }

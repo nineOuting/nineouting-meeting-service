@@ -64,6 +64,10 @@ public class Meeting extends BaseTimeEntity {
     @Column(name = "template_id")
     private Long templateId;
 
+    /** 고른 양식의 이름 (고를 때 받은 값, 그 뒤 양식 이름이 바뀌어도 그대로). 모르면 null */
+    @Column(name = "template_name", length = 100)
+    private String templateName;
+
     @Column(name = "started_at")
     private LocalDateTime startedAt;
 
@@ -111,8 +115,10 @@ public class Meeting extends BaseTimeEntity {
     }
 
     /** REQ-123 회의록 양식 고르기 (시작 전, 서비스에서 확인) */
-    public void chooseTemplate(Long templateId) {
+    public void chooseTemplate(Long templateId, String templateName) {
         this.templateId = templateId;
+        this.templateName = templateId == null || templateName == null || templateName.isBlank()
+                ? null : templateName.strip();
     }
 
     public boolean isOwnedBy(Long userId) {

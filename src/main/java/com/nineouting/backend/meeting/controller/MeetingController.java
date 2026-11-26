@@ -81,8 +81,9 @@ public class MeetingController {
     /** REQ-123 회의록 양식 고르기 */
     @PutMapping("/api/meetings/{meetingId}/template")
     public ApiResponse<MeetingDetailResponse> chooseTemplate(@CurrentUser AuthenticatedUser user, @PathVariable Long meetingId,
-                                                             @RequestBody MeetingTemplateRequest request) {
-        return ApiResponse.ok(meetingService.chooseTemplate(meetingId, user.userId(), request.templateId()));
+                                                             @Valid @RequestBody MeetingTemplateRequest request) {
+        return ApiResponse.ok(meetingService.chooseTemplate(meetingId, user.userId(), request.templateId(),
+                request.templateName()));
     }
 
     /** REQ-073 */

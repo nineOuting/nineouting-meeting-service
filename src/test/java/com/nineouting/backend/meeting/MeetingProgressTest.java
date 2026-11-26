@@ -107,8 +107,21 @@ class MeetingProgressTest extends ApiTestSupport {
         call(folderMember, put(path), "{\"templateId\":7}").andExpect(status().isForbidden());
         call(owner, put(path), "{\"templateId\":7}")
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.templateId").value(7));
+                .andExpect(jsonPath("$.data.templateId").value(7))
+                .andExpect(jsonPath("$.data.templateName").doesNotExist());
         call(folderMember, get("/api/meetings/" + meetingId), null).andExpect(jsonPath("$.data.templateId").value(7));
+
+        // SCRUM-419 고른 양식 이름을 함께 받아 다른 참석자에게도 보여 준다
+        call(owner, put(path), "{\"templateId\":7,\"templateName\":\"  주간 회의 양식 \"}")
+                .andExpect(jsonPath("$.data.templateName").value("주간 회의 양식"));
+        call(writer, get("/api/meetings/" + meetingId), null)
+                .andExpect(jsonPath("$.data.templateName").value("주간 회의 양식"));
+        call(owner, put(path), "{\"templateId\":7,\"templateName\":\"" + "가".repeat(101) + "\"}")
+                .andExpect(status().isBadRequest());
+        call(owner, put(path), "{\"templateId\":null,\"templateName\":\"주간 회의 양식\"}")
+                .andExpect(jsonPath("$.data.templateId").doesNotExist())
+                .andExpect(jsonPath("$.data.templateName").doesNotExist());
+        call(owner, put(path), "{\"templateId\":7,\"templateName\":\"주간 회의 양식\"}").andExpect(status().isOk());
 
         call(writer, post("/api/meetings/" + meetingId + "/start"), null).andExpect(status().isOk());
         call(writer, put(path), "{\"templateId\":8}").andExpect(jsonPath("$.code").value("MEETING_NOT_EDITABLE"));

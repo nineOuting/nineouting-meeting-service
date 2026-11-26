@@ -22,7 +22,6 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -47,8 +46,8 @@ public class MyTodoService {
     private final Clock clock;
 
     /** 최근 회의부터. 지금 들어갈 수 없는 폴더의 회의는 뺀다 */
-    // 다른 서비스 응답을 기다리는 동안 DB 연결을 잡고 있지 않는다. 조회마다 짧은 읽기 트랜잭션을 쓴다
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    // 트랜잭션을 두지 않는다. 조회마다 연결을 잡았다 바로 돌려줘서, 다른 서비스를 기다리는 동안 연결을 쥐지 않는다
+    // (NOT_SUPPORTED는 첫 조회의 연결을 메서드 끝까지 쥔다. 2026-11-26 부하 시험, RemoteCallConnectionTest)
     public List<MyTodoResponse> list(Long userId) {
         List<Meeting> meetings = meetingRepository.findAttended(userId, MeetingStatus.FINISHED,
                 PageRequest.of(0, RECENT_MEETINGS));

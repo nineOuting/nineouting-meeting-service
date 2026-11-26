@@ -185,9 +185,9 @@ public class MeetingService {
 
     /** REQ-123 회의록 양식 고르기. 참석자 모두, 시작 전에만 (REQ-130) */
     @Transactional
-    public MeetingDetailResponse chooseTemplate(Long meetingId, Long userId, Long templateId) {
+    public MeetingDetailResponse chooseTemplate(Long meetingId, Long userId, Long templateId, String templateName) {
         Meeting meeting = access.requireEditable(meetingId, userId);
-        meeting.chooseTemplate(templateId);
+        meeting.chooseTemplate(templateId, templateName);
         return detail(meeting);
     }
 
@@ -272,7 +272,7 @@ public class MeetingService {
                 agendaRepository.findByMeetingIdOrderByPosition(meeting.getId()).stream().map(AgendaResponse::from).toList(),
                 meeting.getPreviousMeetingId(), meeting.getStartedAt(), meeting.getFinishedAt(),
                 meeting.isPaused(), meeting.getPausedAt(), meeting.getPausedTotalMs() / MILLIS_PER_SECOND,
-                meeting.getTemplateId());
+                meeting.getTemplateId(), meeting.getTemplateName());
     }
 
     /** 요청한 참석자 + 만든 사람 (요청 순서 유지) */

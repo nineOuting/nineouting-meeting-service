@@ -18,10 +18,13 @@ import com.nineouting.backend.meeting.repository.MeetingAttendeeRepository;
 import com.nineouting.backend.meeting.repository.MeetingRepository;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +44,9 @@ import tools.jackson.databind.node.ObjectNode;
 @RequiredArgsConstructor
 public class AgendaSync {
 
+    /** 합쳐서 rev 순서로 보내는 종류 */
+    private static final Set<AgendaEditKind> IN_REV_ORDER = EnumSet.of(AgendaEditKind.DECISION, AgendaEditKind.STATUS);
+
     private final AgendaStateRepository stateRepository;
     private final AgendaEditRepository editRepository;
     private final AgendaRepository agendaRepository;
@@ -51,7 +57,11 @@ public class AgendaSync {
     private final JsonMapper jsonMapper;
     private final Clock clock;
 
-    /** 안건 목록 → 줄 분류 고치기 → 요약 → 의견·할 일 → 결정 내용 → 제안 무시 → 끝내기 순서로 보낸다 */
+    /**
+     * 안건 목록 → 줄 분류 고치기 → 요약 → 의견·할 일 → 결정 내용과 사항 상태 → 제안 무시 → 끝내기 순서로 보낸다.
+     * 결정 내용과 사항 상태는 서로 영향을 주므로(SCRUM-425: 결정 내용을 고치면 상태도 잠기고, AUTO는 고친 결정 내용도 푼다)
+     * 둘을 합쳐 사용자가 한 순서(rev)대로 보낸다. 이어지는 같은 종류끼리 한 요청에 담는다
+     */
     public void sendPending(Long meetingId) {
         Optional<AgendaState> found = stateRepository.findForUpdate(meetingId);
         if (found.isEmpty()) {
@@ -63,18 +73,40 @@ public class AgendaSync {
         }
         List<AgendaEdit> pending = editRepository.findByMeetingIdAndSentFalseOrderById(meetingId);
         for (AgendaEditKind kind : AgendaEditKind.values()) {
-            List<AgendaEdit> edits = pending.stream().filter(edit -> edit.getKind() == kind).toList();
-            if (edits.isEmpty()) {
-                continue;
+            if (kind == AgendaEditKind.STATUS) {
+                continue;   // 결정 내용 차례에 함께 보냈다
             }
-            if (kind.arrayName() != null) {
-                send(meetingId, kind, edits, batchBody(meetingId, kind, edits));
-            } else {
+            List<AgendaEdit> edits = kind == AgendaEditKind.DECISION
+                    ? pending.stream().filter(edit -> IN_REV_ORDER.contains(edit.getKind()))
+                            .sorted(Comparator.comparingInt(this::revOf)).toList()
+                    : pending.stream().filter(edit -> edit.getKind() == kind).toList();
+            if (kind.arrayName() == null) {
                 for (AgendaEdit edit : edits) {
                     send(meetingId, kind, List.of(edit), singleBody(edit));
                 }
+                continue;
+            }
+            for (List<AgendaEdit> run : runsOfSameKind(edits)) {
+                AgendaEditKind runKind = run.get(0).getKind();
+                send(meetingId, runKind, run, batchBody(meetingId, runKind, run));
             }
         }
+    }
+
+    /** 이어지는 같은 종류끼리 묶는다. 순서는 그대로 둔다 */
+    private static List<List<AgendaEdit>> runsOfSameKind(List<AgendaEdit> edits) {
+        List<List<AgendaEdit>> runs = new ArrayList<>();
+        for (AgendaEdit edit : edits) {
+            if (runs.isEmpty() || runs.get(runs.size() - 1).get(0).getKind() != edit.getKind()) {
+                runs.add(new ArrayList<>());
+            }
+            runs.get(runs.size() - 1).add(edit);
+        }
+        return runs;
+    }
+
+    private int revOf(AgendaEdit edit) {
+        return jsonMapper.readTree(edit.getPayload()).path("rev").asInt();
     }
 
     /** ai-service가 재시작해 회의 상태를 잃었다. 줄 묶음을 다시 보내기 전에 안건 목록과 고친 것을 모두 다시 보낸다 */

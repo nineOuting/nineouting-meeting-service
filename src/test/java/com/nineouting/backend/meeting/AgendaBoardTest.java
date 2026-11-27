@@ -306,8 +306,35 @@ class AgendaBoardTest extends ApiTestSupport {
         int resentBatch = kinds.lastIndexOf("batches");
         assertThat(kinds.lastIndexOf("agendas")).isLessThan(resentBatch);
         assertThat(kinds.lastIndexOf("decision-edits")).isLessThan(resentBatch);
-        // 상태는 결정 내용 다음에 다시 보낸다 (agenda-status-contract.md 10장)
+        // 결정 내용과 상태는 고친 순서(rev)대로 다시 보낸다. 여기서는 결정 내용을 먼저 고쳤다
         assertThat(kinds.lastIndexOf("status-edits")).isGreaterThan(kinds.lastIndexOf("decision-edits")).isLessThan(resentBatch);
+    }
+
+    @Test
+    void ai_service가_재시작하면_AI에게_맡긴_뒤_고친_결정_내용을_상태보다_나중에_다시_보낸다() throws Exception {
+        start();
+        await("agendas", body -> true);
+        internalPost("/internal/meetings/" + meetingId + "/transcripts",
+                "{\"segments\":[{\"seq\":1,\"rev\":1,\"text\":\"첫 줄\",\"startMs\":1000,\"endMs\":2000,\"final\":true}]}");
+        awaitKind("batches", 1);
+        String pointPath = "/api/meetings/" + meetingId + "/agendas/" + agendaId + "/decision-points/" + decisionPointId;
+        call(writer, put(pointPath + "/status"), "{\"status\":\"AUTO\"}").andExpect(status().isOk());
+        awaitKind("status-edits", 1);
+        call(writer, put(pointPath + "/decision"), "{\"decisionText\":\"30일 배포\",\"evidenceSeqs\":[1]}")
+                .andExpect(status().isOk());
+        awaitKind("decision-edits", 1);
+
+        // ai-service 재시작: 저장된 AUTO가 고친 결정 내용보다 나중에 가면 고친 글이 풀린다
+        FakeAiService.conflictOnce(1);
+        internalPost("/internal/meetings/" + meetingId + "/transcripts",
+                "{\"segments\":[{\"seq\":2,\"rev\":1,\"text\":\"둘째 줄\",\"startMs\":3000,\"endMs\":4000,\"final\":true}]}");
+        awaitKind("status-edits", 2);
+        String replayed = awaitKind("decision-edits", 2);
+        assertThat(JsonPath.<String>read(replayed, "$.edits[0].decisionText")).isEqualTo("30일 배포");
+        awaitKind("batches", 3);
+        List<String> kinds = FakeAiService.receivedKinds(meetingId);
+        assertThat(kinds.lastIndexOf("status-edits")).isLessThan(kinds.lastIndexOf("decision-edits"))
+                .isLessThan(kinds.lastIndexOf("batches"));
     }
 
     private void start() throws Exception {

@@ -76,6 +76,23 @@ class MeetingProgressTest extends ApiTestSupport {
     }
 
     @Test
+    void 관리자가_멈춘_회의를_마무리하면_작성자가_마무리한_것과_같다() throws Exception {
+        Long meetingId = createMeeting(folderId, owner, writer, writer);
+        mockMvc.perform(post("/internal/admin/meetings/" + meetingId + "/finish"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("MEETING_NOT_IN_PROGRESS"));
+        call(writer, post("/api/meetings/" + meetingId + "/start"), null).andExpect(status().isOk());
+
+        mockMvc.perform(post("/internal/admin/meetings/" + meetingId + "/finish")).andExpect(status().isNoContent());
+        call(owner, get("/api/meetings/" + meetingId), null)
+                .andExpect(jsonPath("$.data.status").value("FINISHED"))
+                .andExpect(jsonPath("$.data.finishedAt").isNotEmpty());
+        assertThat(outboxContains(MeetingFinished.TYPE, "\"meetingId\":%d,".formatted(meetingId))).isTrue();
+        mockMvc.perform(post("/internal/admin/meetings/" + meetingId + "/finish")).andExpect(status().isConflict());
+        mockMvc.perform(post("/internal/admin/meetings/999999999/finish")).andExpect(status().isNotFound());
+    }
+
+    @Test
     void 같은_회의를_두_곳에서_동시에_시작하면_하나만_시작하고_나머지는_이미_시작했다고_한다() throws Exception {
         Long meetingId = createMeeting(folderId, owner, writer, writer);
         ExecutorService pool = Executors.newFixedThreadPool(2);

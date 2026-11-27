@@ -89,6 +89,20 @@ public class MaterialRagSync {
                         body.path("errorCode").asString(null))));
     }
 
+    /**
+     * REQ-217. 관리자가 실패한 자료를 처음부터 다시 보낸다 (다음 보내기 차례에 나간다).
+     * 실패한 자료가 아니면 false (없음, 이미 보내는 중, 끝남)
+     */
+    public boolean retryByAdmin(Long materialId) {
+        return Boolean.TRUE.equals(transactionTemplate.execute(status -> materialRepository.findForUpdate(materialId)
+                .filter(material -> material.getRagStatus() == RagStatus.FAILED)
+                .map(material -> {
+                    material.ragPending(LocalDateTime.now(clock));
+                    return true;
+                })
+                .orElse(false)));
+    }
+
     /** 자료를 지웠다. 지운 트랜잭션이 끝난 뒤 검색용 저장소에서도 지운다. 실패해도 지우기를 막지 않는다 */
     public void deleteQuietly(Long materialId) {
         if (!aiProperties.enabled()) {

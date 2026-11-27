@@ -1,8 +1,9 @@
 package com.nineouting.backend.meeting.domain;
 
 /**
- * ai-service로 보내는 사람의 요청 종류와 주소. 재시작 복구 때 이 순서대로 다시 보낸다
+ * ai-service로 보내는 사람의 요청 종류와 주소. 평소와 재시작 복구 때 이 순서대로 보낸다
  * (ai-service docs/api/agenda-leftover-contract.md, agenda-contract.md 재시작 복구).
+ * 결정 내용(DECISION)과 사항 상태(STATUS)만은 결정 내용 차례에 둘을 합쳐 rev 순서로 보낸다.
  */
 public enum AgendaEditKind {
     /** 줄의 안건 분류 고치기 (REQ-089) */
@@ -11,9 +12,9 @@ public enum AgendaEditKind {
     SUMMARY("agenda-summary-edits", "edits"),
     /** 의견·할 일 고치기·확인 (REQ-087, 097) */
     ITEM("agenda-item-edits", "edits"),
-    /** 결정 내용 고치기 (REQ-126) */
+    /** 결정 내용 고치기 (REQ-126). 사항 상태와 합쳐 rev 순서로 보낸다 (AgendaSync) */
     DECISION("decision-edits", "edits"),
-    /** 결정할 사항 상태 정하기: 결정, 미결, AI 판정으로 되돌리기 (agenda-status-contract.md 7.5). 결정 내용 다음에 다시 보낸다 */
+    /** 결정할 사항 상태 정하기: 결정, 미결, AI 판정으로 되돌리기 (agenda-status-contract.md 7.5). 결정 내용과 합쳐 rev 순서로 보낸다 */
     STATUS("status-edits", "edits"),
     /** 새 안건 제안·주제 이탈 알림 무시 (REQ-091~092). 하나씩 보낸다 */
     OFF_TOPIC("off-topic-actions", null),

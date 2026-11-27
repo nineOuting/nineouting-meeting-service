@@ -134,6 +134,27 @@ class ChatbotTest extends ApiTestSupport {
     }
 
     @Test
+    void 관리자가_실패한_자료를_다시_보내면_처음부터_다시_보낸다() throws Exception {
+        Long owner = newId();
+        Long folderId = folder(newId(), "폴더", owner);
+        Long meetingId = createMeeting(folderId, owner, owner);
+        Long materialId = upload(meetingId, owner, "스캔.pdf");
+        materialRagSync.run();
+        // 보내는 중이면 다시 보내지 않는다
+        mockMvc.perform(post("/internal/admin/materials/" + materialId + "/rag-retry"))
+                .andExpect(status().isNotFound());
+        callback(materialId, etagOf(materialId), "failed", "no_text");
+
+        mockMvc.perform(post("/internal/admin/materials/" + materialId + "/rag-retry"))
+                .andExpect(status().isNoContent());
+        MeetingMaterial material = materialRepository.findById(materialId).orElseThrow();
+        assertThat(material.getRagStatus()).isEqualTo(RagStatus.PENDING);
+        assertThat(material.getRagAttempts()).isZero();
+        materialRagSync.run();
+        assertThat(ingests(materialId)).hasSize(2);
+    }
+
+    @Test
     void ai_service가_잠시_안_되면_나중에_다시_보낸다() throws Exception {
         Long owner = newId();
         Long folderId = folder(newId(), "폴더", owner);

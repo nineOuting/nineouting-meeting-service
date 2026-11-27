@@ -194,7 +194,23 @@ public class MeetingProgressService {
      */
     @Transactional
     public void finish(Long meetingId, Long userId) {
-        Meeting meeting = access.requireWriterInProgress(meetingId, userId);
+        finish(access.requireWriterInProgress(meetingId, userId));
+    }
+
+    /** REQ-217. 관리자가 멈춘 회의를 마무리한다. 작성자가 마무리한 것과 같이 회의록을 만들고 회의방을 닫는다 */
+    @Transactional
+    public void finishByAdmin(Long meetingId) {
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .filter(found -> !found.isTrashed())
+                .orElseThrow(() -> new BusinessException(CommonErrorCode.NOT_FOUND));
+        if (!meeting.is(MeetingStatus.IN_PROGRESS)) {
+            throw new BusinessException(MeetingErrorCode.MEETING_NOT_IN_PROGRESS);
+        }
+        finish(meeting);
+    }
+
+    private void finish(Meeting meeting) {
+        Long meetingId = meeting.getId();
         meeting.finish(LocalDateTime.now(clock));
         pendingAgendaRepository.findByTakenMeetingIdAndStatus(meetingId, PendingAgendaStatus.IN_PROGRESS)
                 .forEach(PendingAgenda::done);
